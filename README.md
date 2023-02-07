@@ -82,7 +82,7 @@ Or use your favorite IDE.
 
 Please compile your final code in Release mode for optimal speed, and use Debug mode to debug your code.
 
-If you encounter any problems, please create a post on the [course Moodle](https://moodle-app2.let.ethz.ch/course/) or ask the assistant in the exercise session.
+If you encounter any problems, please create a post on the [course Moodle](https://moodle-app2.let.ethz.ch/course/view.php?id=19536) or ask the assistant in the exercise session.
 
 ### Workflow
 In general, you should use Git to commit your edits as often as possible. This will help you with backtracking bugs and also serve as a backup mechanism. For more information we refer you to the [Pro Git book](https://git-scm.com/book/en/v2/Git-Basics-Recording-Changes-to-the-Repository).
@@ -107,7 +107,7 @@ git push
 You can keep updating your code before the deadline. After the deadline, please don't change the code before we send you the scores.
 
 ### Using Moodle for Discussion 
-Please use the [course Moodle](https://moodle-app2.let.ethz.ch/course/) to post your questions and discussions about the assignments. We will try to answer your questions as soon as possible, while all students are encouraged to address these questions to help their fellows. Please make sure your question is not a duplicate before submitting it.
+Please use the [course Moodle](https://moodle-app2.let.ethz.ch/course/view.php?id=19536) to post your questions and discussions about the assignments. We will try to answer your questions as soon as possible, while all students are encouraged to address these questions to help their fellows. Please make sure your question is not a duplicate before submitting it.
 
 
 **The solutions must be submitted before the deadlines mentioned in the assignment sheet and on the course website (we will check the git commit timestamp). Late submissions will not be accepted.**

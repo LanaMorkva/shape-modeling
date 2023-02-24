@@ -2,10 +2,10 @@
 
 ## Student data
 
-Name: 'Your real name'  
-Legi-Nr: 'Your legi number'
+Name: Svitlana Morkva  
+Legi-Nr: 22-944-284
 
-Email: 'Your email address'
+Email: lanamorkva.work@gmail.com
 
 Carefully follow the instructions below to setup your assignment repository.
 

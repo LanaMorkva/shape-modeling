@@ -104,7 +104,8 @@ To submit your solution of the assignment please add the following commit messag
 git commit -m "Solution assignment X"
 git push
 ```
-You can keep updating your code before the deadline. After the deadline, please don't change the code before we send you the scores.
+Please make sure your code compiles on either Unix or Windows, as indicated by the GitHub Action that will run automatically when you push changes to one of the assignment directories.
+You can keep updating your code before the deadline. After the deadline, please don't change the code of that assignment before we send you the scores.
 
 ### Using Moodle for Discussion 
 Please use the [course Moodle](https://moodle-app2.let.ethz.ch/course/view.php?id=19536) to post your questions and discussions about the assignments. We will try to answer your questions as soon as possible, while all students are encouraged to address these questions to help their fellows. Please make sure your question is not a duplicate before submitting it.

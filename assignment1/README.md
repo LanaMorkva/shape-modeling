@@ -1,7 +1,7 @@
 # Assignment 1
-Name: 'Your real name'
+Name: Svitlana Morkva
 
-Legi-Nr: 'Your legi number'
+Legi-Nr: 22-944-284
 
 
 ## Required results
@@ -19,27 +19,27 @@ Edit this 'README.md' file to report all your results. You only need to update t
 
 ## Reports
 ### text dump of the data structure for "plane.off"
-|Vertices-to-Face      | Vertices-to-Vertex  |
-| :------------------- |:------------------- |
-| paste something here | paste something here|
+|Vertices-to-Face      | Vertices-to-Vertex |
+| :------------------- |:-------------------|
+| paste something here |                    |
 
 
 
 ### Show three screenshots of the 'fandisk.off' model using different shading. Make sure you disable the wireframe and that the screenshots clearly show the differences between the different shading types.
-| model name  | per-face shading    | per-vertex shading |  per-corner shading |
-| :---------: | ------------------- | ------------------ | ------------------- |
-| fandisk     |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300">  |
+| model name  | per-face shading                                      | per-vertex shading                                       | per-corner shading                                       |
+| :---------: |-------------------------------------------------------|----------------------------------------------------------|----------------------------------------------------------|
+| fandisk     | <img align="center" src="./res/Face.png" width="300"> | <img align="center"  src="./res/Vertex.png" width="300"> | <img align="center"  src="./res/Corner.png" width="300"> |
 
 #### Briefly describe the difference between the different shading types.
 Explain here.
 
 ### Assign different colors to each connected component
-| model name   | your results                                                  |  no. of components | no. of faces per component |
-| :----------: | ------------------------------------------------------------  |:-----------------: | :------------------------: |
-|bumpy_cube    |<img align="center"  src="./res/placeholder.png" width="300">  |   2                |  2000/3000                 |
-|bunny         |<img align="center"  src="./res/placeholder.png" width="300">  |   x                |  xxxxxxxxx                 |
-|coffeecup     |<img align="center"  src="./res/placeholder.png" width="300">  |   x                |  xxxxxxxxx                 |
-|honda         |<img align="center"  src="./res/placeholder.png" width="300">  |   x                |  xxxxxxxxx                 |
+| model name   | your results                                             | no. of components |            no. of faces per component            |
+| :----------: |----------------------------------------------------------|:-----------------:|:------------------------------------------------:|
+|bumpy_cube    | <img align="center"  src="./res/Bumpy.png" width="300">  |         1         |                       2496                       |
+|bunny         | <img align="center"  src="./res/Bunny.png" width="300">  |         1         |                      27864                       |
+|coffeecup     | <img align="center"  src="./res/Coffee.png" width="300"> |         2         |                    3360/2304                     |
+|honda         | <img align="center"  src="./res/Car.png" width="300">    |        11         | 90/192/192/13216/704/1088/1088/1088/1088/736/736 |
 
 
 

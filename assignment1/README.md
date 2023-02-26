@@ -44,13 +44,12 @@ Explain here.
 
 
 ### Screenshots of subdivided meshes. Make sure you enable the wireframe overlay.
-
-| model name | original shape                                               | subdivided shape                                             |
-| :--------: | ------------------------------------------------------------ |------------------------------------------------------------- | 
-| plane      |<img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300"> |
-| sphere     |<img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300"> |
-| bunny      |<img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300"> |
-| bumpy_cube |<img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300"> |
+| model name | original shape                                               | subdivided shape                                              |
+| :--------: |--------------------------------------------------------------|---------------------------------------------------------------| 
+| plane      | <img align="center"  src="./res/Plane_org.png" width="300">  | <img align="center"  src="./res/Plane_subd.png" width="300">  |
+| sphere     | <img align="center"  src="./res/Sphere_org.png" width="300"> | <img align="center"  src="./res/Sphere_subd.png" width="300"> |
+| bunny      | <img align="center"  src="./res/Bunny_org.png" width="300">  | <img align="center"  src="./res/Bunny_subd.png" width="300">  |
+| bumpy_cube | <img align="center"  src="./res/Bumpy_org.png" width="300">  | <img align="center"  src="./res/Bumpy_subd.png" width="300">  |
 
 
 

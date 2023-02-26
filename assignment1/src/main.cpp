@@ -11,6 +11,8 @@
 #include <igl/per_corner_normals.h>
 #include <igl/facet_components.h>
 #include <igl/jet.h>
+#include <igl/barycenter.h>
+#include <igl/edge_topology.h>
 
 using namespace std;
 using Viewer = igl::opengl::glfw::Viewer;
@@ -35,8 +37,64 @@ Eigen::MatrixXd component_colors_per_face;
 void subdivide_sqrt3(const Eigen::MatrixXd &V,
 					 const Eigen::MatrixXi &F,
 					 Eigen::MatrixXd &Vout,
-					 Eigen::MatrixXi &Fout){
-	
+					 Eigen::MatrixXi &Fout) {
+    std::vector<std::vector<int>> vv;
+    igl::adjacency_list(F, vv);
+
+    Eigen::MatrixXd centers;
+    igl::barycenter(V, F, centers);
+
+    Eigen::MatrixXi FNew = Eigen::MatrixXi(centers.rows() * 3, F.cols());
+    for (int i = 0; i < F.rows(); i++) {
+        Eigen::Vector3i verts = F.row(i);
+        for (int j = 0; j < 2; j++) {
+            FNew.row(i * 3 + j) << verts[j], verts[j + 1], V.rows() + i;
+        }
+        FNew.row(i * 3 + 2) << verts[2], verts[0], V.rows() + i;
+    }
+
+    Eigen::MatrixXd P = Eigen::MatrixXd(V.rows(), V.cols());
+    for (int i = 0; i < V.rows(); i++) {
+        int n = vv[i].size();
+        double an = (4.0f - 2.0f * std::cos((2 * M_PI) / n)) / 9.0f;
+        Eigen::Vector3d sumV = Eigen::Vector3d::Zero();
+        for (int index: vv[i]) {
+            sumV += V.row(index);
+        }
+        Eigen::Vector3d prevVal = V.row(i);
+        P.row(i) = (1.0f - an) * prevVal + (an / n) * sumV;
+    }
+    Vout = Eigen::MatrixXd(V.rows() + centers.rows(), V.cols());
+    Vout << P, centers;
+    Fout = FNew;
+
+    Eigen::MatrixXi ev, fe, ef;
+    igl::edge_topology(Vout, Fout, ev, fe, ef);
+    for (int i = 0; i < ef.rows(); i++) {
+        bool flip = (ev.row(i).array() < V.rows()).all();
+        if (!flip) {
+            continue;
+        }
+        std::array<int, 2> faces = {ef.coeff(i, 0), ef.coeff(i, 1)};
+        if (faces[0] < 0 || faces[1] < 0) {
+            continue;
+        }
+        std::vector<int> notOnEdge;
+        for (int f: faces) {
+            auto verts = FNew.row(f);
+            for (int v = 0; v < 3; v++) {
+                int vert = verts[v];
+                if ((ev.row(i).array() != vert).all()) {
+                    notOnEdge.push_back(vert);
+                }
+            }
+        }
+        if (notOnEdge.size() != 2) {
+            continue;
+        }
+        Fout.row(faces[0]) << notOnEdge[0], ev.coeff(i, 0), notOnEdge[1];
+        Fout.row(faces[1]) << notOnEdge[1], ev.coeff(i, 1), notOnEdge[0];
+    }
 }
 
 bool callback_key_down(Viewer& viewer, unsigned char key, int modifiers) {

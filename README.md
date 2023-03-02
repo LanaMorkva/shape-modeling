@@ -104,7 +104,7 @@ To submit your solution of the assignment please add the following commit messag
 git commit -m "Solution assignment X"
 git push
 ```
-Please make sure your code compiles on either Unix or Windows, as indicated by the GitHub Action that will run automatically when you push changes to one of the assignment directories.
+Please make sure your code compiles on either Unix or Windows.
 You can keep updating your code before the deadline. After the deadline, please don't change the code of that assignment before we send you the scores.
 
 ### Using Moodle for Discussion 

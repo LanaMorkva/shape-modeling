@@ -13,6 +13,7 @@
 #include <igl/jet.h>
 #include <igl/barycenter.h>
 #include <igl/edge_topology.h>
+#include <igl/boundary_loop.h>
 
 using namespace std;
 using Viewer = igl::opengl::glfw::Viewer;
@@ -54,15 +55,21 @@ void subdivide_sqrt3(const Eigen::MatrixXd &V,
     }
 
     Eigen::MatrixXd P = Eigen::MatrixXd(V.rows(), V.cols());
+    std::vector<int> boundVerts;
+    igl::boundary_loop(F, boundVerts);
     for (int i = 0; i < V.rows(); i++) {
-        int n = vv[i].size();
-        double an = (4.0f - 2.0f * std::cos((2 * M_PI) / n)) / 9.0f;
-        Eigen::Vector3d sumV = Eigen::Vector3d::Zero();
-        for (int index: vv[i]) {
-            sumV += V.row(index);
-        }
         Eigen::Vector3d prevVal = V.row(i);
-        P.row(i) = (1.0f - an) * prevVal + (an / n) * sumV;
+        if (std::find(boundVerts.begin(), boundVerts.end(), i) != boundVerts.end()) {
+            P.row(i) = prevVal;
+        } else {
+            int n = vv[i].size();
+            double an = (4.0f - 2.0f * std::cos((2 * M_PI) / n)) / 9.0f;
+            Eigen::Vector3d sumV = Eigen::Vector3d::Zero();
+            for (int index: vv[i]) {
+                sumV += V.row(index);
+            }
+            P.row(i) = (1.0f - an) * prevVal + (an / n) * sumV;
+        }
     }
     Vout = Eigen::MatrixXd(V.rows() + centers.rows(), V.cols());
     Vout << P, centers;

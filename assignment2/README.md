@@ -1,7 +1,7 @@
 # Assignment 2
-Name: 'Your real name'
+Name: Svitlana Morkva
 
-Legi-Nr: 'Your legi number'
+Legi-Nr: 22-944-284
 
 ## Required results
 Edit this 'README.md' file to report all your results. You only need to update the tables in the reports section by adding screenshots and reporting results.

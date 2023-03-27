@@ -6,9 +6,9 @@
 /*** insert any necessary libigl headers here ***/
 #include <igl/per_face_normals.h>
 #include <igl/copyleft/marching_cubes.h>
-#include <igl/bounding_box_diagonal.h>
-#include <random>
-#include <chrono>
+
+// added class to handle spatial indices and brute force method
+#include "ConstrHelper.h"
 
 using namespace std;
 using Viewer = igl::opengl::glfw::Viewer;
@@ -59,10 +59,6 @@ Eigen::MatrixXi F;
 // Output: face normals of the reconstructed mesh, #F x3
 Eigen::MatrixXd FN;
 
-std::map<int, std::vector<int>> uniform_grid;
-Eigen::RowVector3d bb_min, bb_max;
-Eigen::RowVector3d dim;
-
 // Functions
 void createGrid();
 void evaluateImplicitFunc();
@@ -86,11 +82,11 @@ void createGrid()
     FN.resize(0, 3);
 
     // Grid bounds: axis-aligned bounding box
-    bb_min = P.colwise().minCoeff();
-    bb_max = P.colwise().maxCoeff();
+    Eigen::RowVector3d bb_min = P.colwise().minCoeff();
+    Eigen::RowVector3d bb_max = P.colwise().maxCoeff();
 
     // Bounding box dimensions
-    dim = bb_max - bb_min;
+    Eigen::RowVector3d dim = bb_max - bb_min;
 
     // Grid spacing
     const double dx = dim[0] / (double)(resolution - 1);
@@ -123,8 +119,8 @@ void createGrid()
 void evaluateImplicitFunc()
 {
     // Sphere center
-    bb_min = grid_points.colwise().minCoeff().eval();
-    bb_max = grid_points.colwise().maxCoeff().eval();
+    Eigen::RowVector3d bb_min = grid_points.colwise().minCoeff().eval();
+    Eigen::RowVector3d bb_max = grid_points.colwise().maxCoeff().eval();
     Eigen::RowVector3d center = 0.5 * (bb_min + bb_max);
 
     double radius = 0.5 * (bb_max - bb_min).minCoeff();
@@ -199,131 +195,15 @@ void pcaNormal()
     NP = -N; // to be replaced with your code
 }
 
-void buildUniformGrid() {
-    // Grid bounds: axis-aligned bounding box
-    bb_min = P.colwise().minCoeff();
-    bb_max = P.colwise().maxCoeff();
-
-    // Bounding box dimensions
-    dim = bb_max - bb_min;
-    auto d = (double)(resolution - 1);
-
-    // Grid spacing
-    const double dx = dim[0] / d;
-    const double dy = dim[1] / d;
-    const double dz = dim[2] / d;
-
-    for (int index = 0; index < P.rows(); index++) {
-        Eigen::RowVector3d p = P.row(index);
-        Eigen::RowVector3d cell_dist = (p - bb_min) / d;
-        int i = std::floor(cell_dist[0]);
-        int j = std::floor(cell_dist[1]);
-        int k = std::floor(cell_dist[2]);
-        int cell_ind = i + j * dx + k * dx * dy;
-        uniform_grid[cell_ind].push_back(index);
-    }
-}
-
-int closestToPoint_Slow(const Eigen::RowVector3d &q) {
-    int minDistInd = -1;
-    double minDist = DBL_MAX;
+std::vector<int> withinDist_Slow(const Eigen::RowVector3d &q, double h) {
+    std::vector<int> res;
     for (int i = 0; i < P.rows(); i++) {
         auto dist = (P.row(i) - q).norm();
-        minDistInd = dist < minDist ? i : minDistInd;
-        minDist = dist < minDist ? dist : minDist;
-    }
-    return minDistInd;
-}
-
-int closestToPoint(const Eigen::RowVector3d &q) {
-    int minDistInd = -1;
-    double minDist = DBL_MAX;
-
-    auto d = (double)(resolution - 1);
-    // Grid spacing
-    Eigen::RowVector3d cell_size = dim / d;
-    Eigen::RowVector3d cell_dist = (q - bb_min) / d;
-    const double dx = cell_size[0];
-    const double dy = cell_size[1];
-    int i = std::floor(cell_dist[0]);
-    int j = std::floor(cell_dist[1]);
-    int k = std::floor(cell_dist[2]);
-    int q_cell = i + j * dx + k * dx * dy;
-    if (uniform_grid.count(q_cell)) {
-        for (int num: uniform_grid[q_cell]) {
-            auto dist = (P.row(num) - q).norm();
-            minDistInd = dist < minDist ? num : minDistInd;
-            minDist = dist < minDist ? dist : minDist;
-        }
-        // find minimum dist to cell's sides
-        double prevCellDist = cell_dist.minCoeff();
-        double nextCellDist = (cell_size - cell_dist).minCoeff();
-        // return if dist to sides bigger than found point
-        if (minDist < min(prevCellDist, nextCellDist)) {
-            return minDistInd;
+        if (dist < h) {
+            res.push_back(i);
         }
     }
-
-    // check all neighbours in the circle level
-    int circleNum = 1;
-    double dxdy = dx*dy;
-    while (minDistInd == -1) {
-        int xL = i-circleNum;
-        int xR = i+circleNum;
-        for (int z = k-circleNum; z < k+circleNum+1; z++) {
-            for (int y = j - circleNum; y < j + circleNum + 1; y++) {
-                int base = y * dx + z * dxdy;
-                int cellL = xL + base;
-                int cellR = xR + base;
-                for (int num: uniform_grid[cellL]) {
-                    auto dist = (P.row(num) - q).norm();
-                    minDistInd = dist < minDist ? num : minDistInd;
-                    minDist = dist < minDist ? dist : minDist;
-                }
-                for (int num: uniform_grid[cellR]) {
-                    auto dist = (P.row(num) - q).norm();
-                    minDistInd = dist < minDist ? num : minDistInd;
-                    minDist = dist < minDist ? dist : minDist;
-                }
-            }
-        }
-        int yD = j-circleNum;
-        int yU = j+circleNum;
-        for (int z = k-circleNum; z < k+circleNum+1; z++) {
-            for (int x = xL+1; x < xR; x++) {
-                int base = z * dxdy;
-                int cellD = x + yD + base;
-                int cellU = x + yU + base;
-                for (int num: uniform_grid[cellD]) {
-                    auto dist = (P.row(num) - q).norm();
-                    minDistInd = dist < minDist ? num : minDistInd;
-                    minDist = dist < minDist ? dist : minDist;
-                }
-                for (int num: uniform_grid[cellU]) {
-                    auto dist = (P.row(num) - q).norm();
-                    minDistInd = dist < minDist ? num : minDistInd;
-                    minDist = dist < minDist ? dist : minDist;
-                }
-            }
-        }
-        circleNum++;
-    }
-
-    return minDistInd;
-}
-
-double getEpsConstr(const Eigen::Vector3d &n, double eps_max, int sign, int p_ind) {
-    Eigen::Index minDistInd = P.rows();
-    Eigen::Vector3d p = P.row(p_ind);
-    // multiply by 2: just a workaround to make loop better
-    double eps = 2.0 * eps_max;
-    while (minDistInd != p_ind) {
-        eps /= 2.0;
-        Eigen::Vector3d pEps = p + sign * eps * n;
-        auto distMatrix = P.rowwise() - pEps.transpose();
-        distMatrix.rowwise().norm().minCoeff(&minDistInd);
-    }
-    return eps;
+    return res;
 }
 
 bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
@@ -345,23 +225,28 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
         // Add your code for computing auxiliary constraint points here
         // Add code for displaying all points, as above
 
-        double eps_m = 0.01 * igl::bounding_box_diagonal(P);
+        auto start = chrono::high_resolution_clock::now();
+        ConstrHelper helper_fast(P, N, true, resolution);
+        helper_fast.calcConstraints();
+        auto end = chrono::high_resolution_clock::now();
+        auto timeFast = std::chrono::duration<double, std::milli>(end - start).count();
 
-        constrained_points = Eigen::MatrixXd(P.rows() * 3, P.cols());
-        constrained_values = Eigen::VectorXd(P.rows() * 3);
-        for (int i = 0; i < P.rows(); i++) {
-            Eigen::Vector3d p = P.row(i);
-            constrained_points.row(i) = p;
-            constrained_values[i] = 0;
+        start = chrono::high_resolution_clock::now();
+        ConstrHelper helper_slow(P, N);
+        helper_slow.calcConstraints();
+        end = chrono::high_resolution_clock::now();
+        auto timeSlow = std::chrono::duration<double, std::milli>(end - start).count();
 
-            Eigen::Vector3d n = N.row(i).normalized();
+        printf("Execution time: slow %f; fast %f\n", timeSlow, timeFast);
 
-            double epsPlus = getEpsConstr(n, eps_m, 1, i);
-            double epsMinus = getEpsConstr(n, eps_m, -1, i);
-            constrained_points.row(i+P.rows()) = p + epsPlus * n;
-            constrained_values[i+P.rows()] = epsPlus;
-            constrained_points.row(i+2*P.rows()) = p - epsMinus * n;
-            constrained_values[i+2*P.rows()] = -epsMinus;
+        constrained_points = helper_fast.constrPoints();
+        constrained_values = helper_fast.constrValues();
+        auto slow_constrp = helper_slow.constrPoints();
+
+        if (!slow_constrp.isApprox(constrained_points)) {
+            printf("Error: values are not equal\n");
+        } else {
+            printf("Yay: they are equal\n");
         }
 
         Eigen::MatrixXd constrained_colors = Eigen::MatrixXd::Zero(P.rows() * 3, 3);
@@ -373,33 +258,6 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
                 Eigen::VectorXd::Ones(P.rows());
         viewer.data().point_size = 8;
         viewer.data().add_points(constrained_points, constrained_colors);
-
-        // test 1.2
-        buildUniformGrid();
-        std::random_device rd; // obtain a random number from hardware
-        std::mt19937 gen(rd()); // seed the generator
-        std::uniform_int_distribution<> distr(0, P.rows()); // define the range
-        for (int i = 0; i < 10; i++) {
-            int row = distr(gen);
-            Eigen::RowVector3d q = P.row(row);
-
-            auto start = chrono::high_resolution_clock::now();
-            int indexSlow = closestToPoint_Slow(q);
-            auto end = chrono::high_resolution_clock::now();
-            auto timeSlow = std::chrono::duration<double, std::milli>(end - start).count();
-
-            start = chrono::high_resolution_clock::now();
-            int indexFast = closestToPoint(q);
-            end = chrono::high_resolution_clock::now();
-            auto timeFast = std::chrono::duration<double, std::milli>(end - start).count();
-
-            if (indexFast == row && indexSlow == row) {
-                printf("Success %d/10!\n", i+1);
-            } else {
-                printf("Error: indices don't match %d\n", i+1);
-            }
-            printf("Execution time: slow %f; fast %f\n", timeSlow, timeFast);
-        }
     }
 
     if (key == '3')
@@ -568,6 +426,7 @@ int main(int argc, char *argv[])
         {
             // Expose variable directly ...
             ImGui::InputInt("Resolution", &resolution, 0, 0);
+
             if (ImGui::Button("Reset Grid", ImVec2(-1, 0)))
             {
                 std::cout << "ResetGrid\n";
@@ -576,8 +435,18 @@ int main(int argc, char *argv[])
                 // Switch view to show the grid
                 callback_key_down(viewer, '3', 0);
             }
-
-            // TODO: Add more parameters to tweak here...
+            if (ImGui::InputInt("polyDegree", &polyDegree, 0, 0)) {
+                if (polyDegree < 0 || polyDegree > 2) {
+                    polyDegree = 0;
+                }
+                callback_key_down(viewer, '3', 0);
+            }
+            if (ImGui::InputDouble("wendlandRadius", &wendlandRadius, 0, 0)) {
+                if (wendlandRadius < 0) {
+                    wendlandRadius = 0.1;
+                }
+                callback_key_down(viewer, '3', 0);
+            }
         }
     };
 

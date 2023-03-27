@@ -13,5 +13,5 @@ igl_include(imgui)
 
 # Add your project files
 FILE(GLOB SRCFILES src/*.cpp)
-add_executable(${PROJECT_NAME} ${SRCFILES} src/ConstrHelper.cpp src/ConstrHelper.h)
+add_executable(${PROJECT_NAME} ${SRCFILES} src/ConstrHelper.cpp src/ConstrHelper.h src/MLSHelper.cpp src/MLSHelper.h)
 target_link_libraries(${PROJECT_NAME} igl::core igl::imgui igl::glfw)

@@ -14,8 +14,12 @@ ConstrHelper::ConstrHelper(const Eigen::MatrixXd &P, const Eigen::MatrixXd &N, b
 }
 
 void ConstrHelper::initGrid() {
+    double eps_m = 0.01 * igl::bounding_box_diagonal(m_P);
     bb_min = m_P.colwise().minCoeff();
     bb_max = m_P.colwise().maxCoeff();
+
+    bb_min -= eps_m;
+    bb_max += eps_m;
 
     // Bounding box dimensions
     dim = bb_max - bb_min;
@@ -83,7 +87,8 @@ void ConstrHelper::addEpsConstr(int p_ind, double eps, int sign) {
                 uni_grid[q_cell].push_back(m_row_num);
             }
             return;
-        }
+        };
+
         eps /= 2.0;
     }
 }

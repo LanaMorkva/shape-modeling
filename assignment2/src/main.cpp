@@ -6,9 +6,11 @@
 /*** insert any necessary libigl headers here ***/
 #include <igl/per_face_normals.h>
 #include <igl/copyleft/marching_cubes.h>
+#include <igl/bounding_box_diagonal.h>
 
 // added class to handle spatial indices and brute force method
 #include "ConstrHelper.h"
+#include "MLSHelper.h"
 
 using namespace std;
 using Viewer = igl::opengl::glfw::Viewer;
@@ -36,6 +38,9 @@ double wendlandRadius = 0.1;
 
 // Parameter: grid resolution
 int resolution = 20;
+
+// Diagonal size
+double diag_size = 0;
 
 // Intermediate result: grid points, at which the imlicit function will be evaluated, #G x3
 Eigen::MatrixXd grid_points;
@@ -82,9 +87,12 @@ void createGrid()
     FN.resize(0, 3);
 
     // Grid bounds: axis-aligned bounding box
-    Eigen::RowVector3d bb_min = P.colwise().minCoeff();
-    Eigen::RowVector3d bb_max = P.colwise().maxCoeff();
+    Eigen::Array3d bb_min = P.colwise().minCoeff();
+    Eigen::Array3d bb_max = P.colwise().maxCoeff();
 
+    // enlarge bound box a bit
+    bb_min -= 0.01*diag_size;
+    bb_max += 0.01*diag_size;
     // Bounding box dimensions
     Eigen::RowVector3d dim = bb_max - bb_min;
 
@@ -104,45 +112,22 @@ void createGrid()
                 // Linear index of the point at (x,y,z)
                 int index = x + resolution * (y + resolution * z);
                 // 3D point at (x,y,z)
-                grid_points.row(index) = bb_min + Eigen::RowVector3d(x * dx, y * dy, z * dz);
+                grid_points.row(index) = bb_min.matrix() + Eigen::Vector3d(x * dx, y * dy, z * dz);
             }
         }
     }
 }
 
-// Function for explicitly evaluating the implicit function for a sphere of
-// radius r centered at c : f(p) = ||p-c|| - r, where p = (x,y,z).
-// This will NOT produce valid results for any mesh other than the given
-// sphere.
-// Replace this with your own function for evaluating the implicit function
-// values at the grid points using MLS
 void evaluateImplicitFunc()
 {
-    // Sphere center
-    Eigen::RowVector3d bb_min = grid_points.colwise().minCoeff().eval();
-    Eigen::RowVector3d bb_max = grid_points.colwise().maxCoeff().eval();
-    Eigen::RowVector3d center = 0.5 * (bb_min + bb_max);
+    // scale wendlandRadius to the object size
+    auto radius = wendlandRadius * diag_size;
 
-    double radius = 0.5 * (bb_max - bb_min).minCoeff();
-
-    // Scalar values of the grid points (the implicit function values)
-    grid_values.resize(resolution * resolution * resolution);
-
-    // Evaluate sphere's signed distance function at each gridpoint.
-    for (unsigned int x = 0; x < resolution; ++x)
-    {
-        for (unsigned int y = 0; y < resolution; ++y)
-        {
-            for (unsigned int z = 0; z < resolution; ++z)
-            {
-                // Linear index of the point at (x,y,z)
-                int index = x + resolution * (y + resolution * z);
-
-                // Value at (x,y,z) = implicit function for the sphere
-                grid_values[index] = (grid_points.row(index) - center).norm() - radius;
-            }
-        }
-    }
+    // Evaluate implicit function
+    MLSHelper mlsHelper(grid_points, constrained_points, constrained_values, resolution,
+                        polyDegree, radius);
+    mlsHelper.calcGridValues();
+    grid_values = mlsHelper.getGridValues();
 }
 
 void evaluateImplicitFunc_PolygonSoup()
@@ -265,12 +250,14 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
         // Show grid points with colored nodes and connected with lines
         viewer.data().clear();
         viewer.core().align_camera_center(P);
-        // Add code for creating a grid
-        // Add your code for evaluating the implicit function at the grid points
-        // Add code for displaying points and lines
-        // You can use the following example:
 
-        /*** begin: sphere example, replace (at least partially) with your code ***/
+        // add constraints again in case if 2 wasn't pressed or need to rebuild
+        ConstrHelper helper_fast(P, N, true, resolution);
+        helper_fast.calcConstraints();
+
+        constrained_points = helper_fast.constrPoints();
+        constrained_values = helper_fast.constrValues();
+
         // Make grid
         createGrid();
 
@@ -407,6 +394,7 @@ int main(int argc, char *argv[])
         // Read points and normals
         igl::readOFF(argv[1], P, F, N);
     }
+    diag_size = igl::bounding_box_diagonal(P);
 
     Viewer viewer;
     igl::opengl::glfw::imgui::ImGuiPlugin plugin;
@@ -426,25 +414,21 @@ int main(int argc, char *argv[])
         {
             // Expose variable directly ...
             ImGui::InputInt("Resolution", &resolution, 0, 0);
+            ImGui::InputInt("polyDegree", &polyDegree, 0, 0);
+            ImGui::InputDouble("wendlandRadius", &wendlandRadius, 0, 0);
 
             if (ImGui::Button("Reset Grid", ImVec2(-1, 0)))
             {
+                if (polyDegree < 0 || polyDegree > 2) {
+                    polyDegree = 0;
+                }
+                if (wendlandRadius < 0) {
+                    wendlandRadius = 0.1;
+                }
                 std::cout << "ResetGrid\n";
                 // Recreate the grid
                 createGrid();
                 // Switch view to show the grid
-                callback_key_down(viewer, '3', 0);
-            }
-            if (ImGui::InputInt("polyDegree", &polyDegree, 0, 0)) {
-                if (polyDegree < 0 || polyDegree > 2) {
-                    polyDegree = 0;
-                }
-                callback_key_down(viewer, '3', 0);
-            }
-            if (ImGui::InputDouble("wendlandRadius", &wendlandRadius, 0, 0)) {
-                if (wendlandRadius < 0) {
-                    wendlandRadius = 0.1;
-                }
                 callback_key_down(viewer, '3', 0);
             }
         }

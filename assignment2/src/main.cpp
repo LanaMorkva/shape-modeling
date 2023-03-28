@@ -37,7 +37,7 @@ int polyDegree = 0;
 double wendlandRadius = 0.1;
 
 // Parameter: grid resolution
-int resolution = 20;
+int resolution = 10;
 
 // Diagonal size
 double diag_size = 0;
@@ -123,11 +123,30 @@ void evaluateImplicitFunc()
     // scale wendlandRadius to the object size
     auto radius = wendlandRadius * diag_size;
 
-    // Evaluate implicit function
+    // slow
+    MLSHelper mlsHelper_sl(grid_points, constrained_points, constrained_values, resolution,
+                        polyDegree, radius);
+    auto start = chrono::high_resolution_clock::now();
+    mlsHelper_sl.calcGridValues();
+    auto end = chrono::high_resolution_clock::now();
+    auto slow_grid_values = mlsHelper_sl.getGridValues();
+    auto timeSlow = std::chrono::duration<double, std::milli>(end - start).count();
+
+    // fast
     MLSHelper mlsHelper(grid_points, constrained_points, constrained_values, resolution,
                         polyDegree, radius);
-    mlsHelper.calcGridValues();
+    start = chrono::high_resolution_clock::now();
+    mlsHelper.calcGridValues(true);
+    end = chrono::high_resolution_clock::now();
     grid_values = mlsHelper.getGridValues();
+    auto timeFast = std::chrono::duration<double, std::milli>(end - start).count();
+
+    printf("Execution time MLS: slow %f; fast %f\n", timeSlow, timeFast);
+    if (!grid_values.isApprox(slow_grid_values)) {
+        printf("Error (MLS): values are not equal\n");
+    } else {
+        printf("Yay (MLS): they are equal\n");
+    }
 }
 
 void evaluateImplicitFunc_PolygonSoup()
@@ -180,17 +199,6 @@ void pcaNormal()
     NP = -N; // to be replaced with your code
 }
 
-std::vector<int> withinDist_Slow(const Eigen::RowVector3d &q, double h) {
-    std::vector<int> res;
-    for (int i = 0; i < P.rows(); i++) {
-        auto dist = (P.row(i) - q).norm();
-        if (dist < h) {
-            res.push_back(i);
-        }
-    }
-    return res;
-}
-
 bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
 {
     if (key == '1')
@@ -222,16 +230,16 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
         end = chrono::high_resolution_clock::now();
         auto timeSlow = std::chrono::duration<double, std::milli>(end - start).count();
 
-        printf("Execution time: slow %f; fast %f\n", timeSlow, timeFast);
+        printf("Execution time constraints: slow %f; fast %f\n", timeSlow, timeFast);
 
         constrained_points = helper_fast.constrPoints();
         constrained_values = helper_fast.constrValues();
         auto slow_constrp = helper_slow.constrPoints();
 
         if (!slow_constrp.isApprox(constrained_points)) {
-            printf("Error: values are not equal\n");
+            printf("Error (constraints): values are not equal\n");
         } else {
-            printf("Yay: they are equal\n");
+            printf("Yay (constraints): they are equal\n");
         }
 
         Eigen::MatrixXd constrained_colors = Eigen::MatrixXd::Zero(P.rows() * 3, 3);

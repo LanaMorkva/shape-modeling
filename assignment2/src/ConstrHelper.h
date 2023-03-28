@@ -28,6 +28,7 @@ private:
     std::vector<std::vector<int>> uni_grid;
     Eigen::Array3d bb_min, bb_max, dim;
     Eigen::Array3d cell_size;
+    int m_gridx, m_gridy, m_gridz;
 };
 
 

@@ -26,20 +26,20 @@ void MLSHelper::initGrid() {
     dim = bb_max - bb_min;
 
     // Make cell size the same as radius
-    Eigen::RowVector3d cell_sizef = dim / (double)(m_res - 1);
-    const int dx = std::ceil(cell_sizef[0]);
-    const int dy = std::ceil(cell_sizef[1]);
-    const int dz = std::ceil(cell_sizef[2]);
-    cell_size << dx, dy, dz;
+    cell_size << eps_m, eps_m, eps_m;
+    Eigen::RowVector3d cell_num = dim / eps_m;
+    m_gridx = std::ceil(cell_num[0]);
+    m_gridy = std::ceil(cell_num[1]);
+    m_gridz = std::ceil(cell_num[2]);
 
-    uni_grid.resize(m_res*m_res*m_res);
+    uni_grid.resize(m_gridx*m_gridy*m_gridz);
     for (int index = 0; index < m_CP.rows(); index++) {
         Eigen::Array3d p = m_CP.row(index);
         Eigen::Array3d cell_dist = (p - bb_min) / cell_size;
         int i = std::floor(cell_dist[0]);
         int j = std::floor(cell_dist[1]);
         int k = std::floor(cell_dist[2]);
-        int cell_ind = i + j * m_res + k * m_res * m_res;
+        int cell_ind = i + j * m_gridx + k * m_gridx * m_gridy;
         uni_grid[cell_ind].push_back(index);
     }
 }
@@ -92,77 +92,48 @@ std::vector<int> MLSHelper::withinDist_Slow(const Eigen::RowVector3d &q) {
 
 std::vector<int> MLSHelper::withinDist(const Eigen::Array3d &q) {
     std::vector<int> res;
-    int circlesDefInDist = std::floor(m_radius / cell_size.maxCoeff()) - 1;
-    int maxCircleNum = std::ceil(m_radius / cell_size.minCoeff());
-
     Eigen::Array3d dist = (q - bb_min) / cell_size;
     Eigen::Array3d prev_cell = dist.floor();
+    Eigen::Array3d next_cell = prev_cell+1;
+
+    // find minimum dist to cell's sides
+    Eigen::Array3d prevCellDist = (dist - prev_cell);
+    Eigen::Array3d nextCellDist = (next_cell - dist);
+    Eigen::Array3d lNumCell = (m_radius/cell_size - prevCellDist).ceil();
+    Eigen::Array3d rNumCell = (m_radius/cell_size - nextCellDist).ceil();
 
     int i = prev_cell[0];
     int j = prev_cell[1];
     int k = prev_cell[2];
 
-    for (int x = i-circlesDefInDist; x < i+circlesDefInDist+1; x++) {
-        for (int y = j-circlesDefInDist; y < j+circlesDefInDist+1; y++) {
-            for (int z = k-circlesDefInDist; z < k+circlesDefInDist+1; z++) {
-                int cell = x + y * m_res + z * m_res * m_res;
-                if (cell >= uni_grid.size()) {
-                    continue;
-                }
+    int minx = std::min(std::max(i-(int)lNumCell[0], 0), m_gridx-1);
+    int miny = std::min(std::max(j-(int)lNumCell[1], 0), m_gridy-1);
+    int minz = std::min(std::max(k-(int)lNumCell[2], 0), m_gridz-1);
+
+    int maxx = std::min(std::max(i+(int)rNumCell[0], 0), m_gridx-1);
+    int maxy = std::min(std::max(j+(int)rNumCell[1], 0), m_gridy-1);
+    int maxz = std::min(std::max(k+(int)rNumCell[2], 0), m_gridz-1);
+
+    for (int z = minz; z < maxz+1; z++) {
+        for (int y = miny; y < maxy+1; y++) {
+            for (int x = minx; x < maxx+1; x++) {
+                int cell = x + y * m_gridx + z * m_gridx * m_gridy;
+//                bool needCheck = x==minx || x==maxx || y==miny+3 || y>maxy-3 || z<minz+3 || z>maxz-3;
+                // TODO: add smart check if we need to check (on diagonal for ex); also add if cell definitely in dist
+                bool needCheck = true;
                 for (int num: uni_grid[cell]) {
-                    res.push_back(num);
+                    if (!needCheck) {
+                        res.push_back(num);
+                    } else {
+                        Eigen::Array3d p = m_CP.row(num);
+                        auto norm = (p - q).matrix().norm();
+                        if (norm < m_radius) {
+                            res.push_back(num);
+                        }
+                    }
                 }
             }
         }
-    }
-    auto check_cell = [=, &res](int index) {
-        if (index >= uni_grid.size()) {
-            return;
-        }
-        for (int num: uni_grid[index]) {
-            Eigen::Array3d p = m_CP.row(num);
-            if ((p - q).matrix().norm() < m_radius) {
-                res.push_back(num);
-            }
-        }
-    };
-    int leftCircles = maxCircleNum - circlesDefInDist;
-    while (leftCircles > 0) {
-        int circleNum = maxCircleNum - leftCircles + 1;
-        int xL = i-circleNum;
-        int xR = i+circleNum;
-        for (int z = k-circleNum; z < k+circleNum+1; z++) {
-            for (int y = j - circleNum; y < j + circleNum + 1; y++) {
-                int base = y * m_res + z * m_res*m_res;
-                int cellL = xL + base;
-                int cellR = xR + base;
-                check_cell(cellL);
-                check_cell(cellR);
-            }
-        }
-        int yD = j-circleNum;
-        int yU = j+circleNum;
-        for (int z = k-circleNum; z < k+circleNum+1; z++) {
-            for (int x = xL+1; x < xR; x++) {
-                int base = z * m_res*m_res;
-                int cellD = x + yD*m_res + base;
-                int cellU = x + yU*m_res + base;
-                check_cell(cellD);
-                check_cell(cellU);
-            }
-        }
-        int zD = k-circleNum;
-        int zU = k+circleNum;
-        for (int y = yD+1; y < yU; y++) {
-            for (int x = xL + 1; x < xR; x++) {
-                int base = x + y*m_res;
-                int cellD = base + zD*m_res*m_res;
-                int cellU = base + zU*m_res*m_res;
-                check_cell(cellD);
-                check_cell(cellU);
-            }
-        }
-        leftCircles--;
     }
     return res;
 }

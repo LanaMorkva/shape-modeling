@@ -37,7 +37,7 @@ int polyDegree = 0;
 double wendlandRadius = 0.1;
 
 // Parameter: grid resolution
-int resolution = 10;
+int resolution = 20;
 
 // Diagonal size
 double diag_size = 0;
@@ -63,6 +63,8 @@ Eigen::MatrixXi F;
 
 // Output: face normals of the reconstructed mesh, #F x3
 Eigen::MatrixXd FN;
+std::string filename_def;
+std::string filename_par;
 
 // Functions
 void createGrid();
@@ -113,6 +115,60 @@ void createGrid()
                 int index = x + resolution * (y + resolution * z);
                 // 3D point at (x,y,z)
                 grid_points.row(index) = bb_min.matrix() + Eigen::Vector3d(x * dx, y * dy, z * dz);
+            }
+        }
+    }
+}
+
+void nonAlignedGrid()
+{
+    grid_points.resize(0, 3);
+    grid_colors.resize(0, 3);
+    grid_lines.resize(0, 6);
+    grid_values.resize(0);
+    V.resize(0, 3);
+    F.resize(0, 3);
+    FN.resize(0, 3);
+
+    Eigen::Array3d bb_min0 = P.colwise().minCoeff();
+    Eigen::Array3d bb_max0 = P.colwise().maxCoeff();
+    Eigen::Vector3d dim0 = bb_max0 - bb_min0;
+    std::cout << "Dim before: " << dim0 << std::endl;
+
+    Eigen::MatrixXd centered = P.rowwise() - P.colwise().mean();
+    Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(P.rows() - 1);
+    Eigen::EigenSolver<Eigen::MatrixXd> es(cov);
+    Eigen::MatrixXd eigenVec = es.pseudoEigenvectors();
+    Eigen::MatrixXd egVecInv = eigenVec.inverse();
+
+    auto P_rot = P;
+    for (int i = 0; i < P.rows(); i++) {
+        P_rot.row(i) = egVecInv*P.row(i).transpose();
+    }
+    Eigen::Vector3d bb_min = P_rot.colwise().minCoeff();
+    Eigen::Vector3d bb_max = P_rot.colwise().maxCoeff();
+    Eigen::Vector3d dim = bb_max - bb_min;
+
+    std::cout << "Dim: " << dim << std::endl;
+
+    // Grid spacing
+    const double dx = dim[0] / (double)(resolution - 1);
+    const double dy = dim[1] / (double)(resolution - 1);
+    const double dz = dim[2] / (double)(resolution - 1);
+    // 3D positions of the grid points -- see slides or marching_cubes.h for ordering
+    grid_points.resize(resolution * resolution * resolution, 3);
+    // Create each gridpoint
+    for (unsigned int x = 0; x < resolution; ++x)
+    {
+        for (unsigned int y = 0; y < resolution; ++y)
+        {
+            for (unsigned int z = 0; z < resolution; ++z)
+            {
+                // Linear index of the point at (x,y,z)
+                int index = x + resolution * (y + resolution * z);
+                auto baseVec = bb_min + Eigen::Vector3d(x * dx, y * dy, z * dz);
+                // 3D point at (x,y,z)
+                grid_points.row(index) = eigenVec * baseVec;
             }
         }
     }
@@ -267,7 +323,7 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
         constrained_values = helper_fast.constrValues();
 
         // Make grid
-        createGrid();
+        nonAlignedGrid();
 
         // Evaluate implicit function
         evaluateImplicitFunc();
@@ -300,7 +356,6 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
         viewer.data().add_edges(grid_lines.block(0, 0, grid_lines.rows(), 3),
                                 grid_lines.block(0, 3, grid_lines.rows(), 3),
                                 Eigen::RowVector3d(0.8, 0.8, 0.8));
-        /*** end: sphere example ***/
     }
 
     if (key == '4')
@@ -326,6 +381,7 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
         viewer.data().show_lines = true;
         viewer.data().show_faces = true;
         viewer.data().set_normals(FN);
+        igl::writeOFF(filename_def, V, F);
     }
 
     if (key == '5')
@@ -396,11 +452,17 @@ int main(int argc, char *argv[])
     {
         cout << "Usage ex2_bin <mesh.off>" << endl;
         igl::readOFF("../data/sphere.off", P, F, N);
+        filename_def = "../res/sphere.off";
     }
     else
     {
         // Read points and normals
         igl::readOFF(argv[1], P, F, N);
+        filename_def = argv[1];
+        auto it = filename_def.find("/data/");
+        if (it != std::string::npos) {
+            filename_def.replace(it, 6, "/res/");
+        }
     }
     diag_size = igl::bounding_box_diagonal(P);
 

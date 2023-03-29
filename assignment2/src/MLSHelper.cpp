@@ -4,6 +4,7 @@
 
 #include "MLSHelper.h"
 #include <cfloat>
+#include <iostream>
 #include <Eigen/Dense>
 #include <igl/bounding_box_diagonal.h>
 
@@ -74,6 +75,39 @@ void MLSHelper::calcGridValues(bool fast) {
         Eigen::VectorXd b = constrVal.cwiseProduct(weights);
         Eigen::RowVectorXd c = A.colPivHouseholderQr().solve(b);
 
+        double gv = getPolyVector(gp).dot(c);
+        m_GV[index] = gv;
+    }
+}
+
+void MLSHelper::calcGridValues_NormConstr(const Eigen::MatrixXd &N) {
+    int size = m_res * m_res * m_res;
+    m_GV.resize(size);
+    for (int index = 0; index < size; index++) {
+        auto gp = m_GP.row(index);
+        const auto &points = withinDist_Slow(gp);
+        if (points.empty()) {
+            // assign large positive value
+            m_GV[index] = DBL_MAX;
+            continue;
+        }
+        Eigen::VectorXd weights = Eigen::VectorXd(points.size());
+        Eigen::VectorXd constrVal = Eigen::VectorXd(points.size());
+        Eigen::MatrixXd A = Eigen::MatrixXd(points.size(), polynomVecSize());
+        for (int p_it = 0; p_it < points.size(); p_it++) {
+            int p_ind = points[p_it];
+            auto cp = m_CP.row(p_ind);
+            Eigen::VectorXd pDiff = gp-cp;
+            Eigen::VectorXd n = N.row(p_ind).normalized();
+            auto r = pDiff.norm();
+            auto r_div_h = r/m_radius;
+
+            weights[p_it] = std::pow(1.0 - r_div_h, 4) * (4*r_div_h+1);
+            constrVal[p_it] = pDiff.dot(n);
+            A.row(p_it) = getPolyVector(cp) * weights[p_it];
+        }
+        Eigen::VectorXd b = constrVal.cwiseProduct(weights);
+        Eigen::RowVectorXd c = A.colPivHouseholderQr().solve(b);
         double gv = getPolyVector(gp).dot(c);
         m_GV[index] = gv;
     }

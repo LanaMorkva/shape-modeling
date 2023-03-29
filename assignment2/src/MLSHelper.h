@@ -14,6 +14,9 @@ public:
               double radius);
 
     void calcGridValues(bool fast = false);
+
+    // need to pass regular points, without added constraints to the constructor; CV are not needed
+    void calcGridValues_NormConstr(const Eigen::MatrixXd &N);
     const Eigen::VectorXd &getGridValues() const { return m_GV; }
 
 private:

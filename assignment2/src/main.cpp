@@ -65,9 +65,12 @@ Eigen::MatrixXi F;
 Eigen::MatrixXd FN;
 std::string filename_def;
 std::string filename_par;
+bool non_aligned = false;
 
 // Functions
 void createGrid();
+void nonAlignedGrid();
+void alignedGrid();
 void evaluateImplicitFunc();
 void evaluateImplicitFunc_PolygonSoup();
 void getLines();
@@ -88,6 +91,14 @@ void createGrid()
     F.resize(0, 3);
     FN.resize(0, 3);
 
+    if (non_aligned) {
+        nonAlignedGrid();
+    } else {
+        alignedGrid();
+    }
+}
+
+void alignedGrid() {
     // Grid bounds: axis-aligned bounding box
     Eigen::Array3d bb_min = P.colwise().minCoeff();
     Eigen::Array3d bb_max = P.colwise().maxCoeff();
@@ -120,16 +131,7 @@ void createGrid()
     }
 }
 
-void nonAlignedGrid()
-{
-    grid_points.resize(0, 3);
-    grid_colors.resize(0, 3);
-    grid_lines.resize(0, 6);
-    grid_values.resize(0);
-    V.resize(0, 3);
-    F.resize(0, 3);
-    FN.resize(0, 3);
-
+void nonAlignedGrid() {
     Eigen::Array3d bb_min0 = P.colwise().minCoeff();
     Eigen::Array3d bb_max0 = P.colwise().maxCoeff();
     Eigen::Vector3d dim0 = bb_max0 - bb_min0;
@@ -145,8 +147,12 @@ void nonAlignedGrid()
     for (int i = 0; i < P.rows(); i++) {
         P_rot.row(i) = egVecInv*P.row(i).transpose();
     }
-    Eigen::Vector3d bb_min = P_rot.colwise().minCoeff();
-    Eigen::Vector3d bb_max = P_rot.colwise().maxCoeff();
+    Eigen::Array3d bb_min = P_rot.colwise().minCoeff();
+    Eigen::Array3d bb_max = P_rot.colwise().maxCoeff();
+
+    bb_min -= 0.01*diag_size;
+    bb_max += 0.01*diag_size;
+
     Eigen::Vector3d dim = bb_max - bb_min;
 
     std::cout << "Dim: " << dim << std::endl;
@@ -166,7 +172,7 @@ void nonAlignedGrid()
             {
                 // Linear index of the point at (x,y,z)
                 int index = x + resolution * (y + resolution * z);
-                auto baseVec = bb_min + Eigen::Vector3d(x * dx, y * dy, z * dz);
+                Eigen::Vector3d baseVec = bb_min + Eigen::Array3d(x * dx, y * dy, z * dz);
                 // 3D point at (x,y,z)
                 grid_points.row(index) = eigenVec * baseVec;
             }
@@ -208,7 +214,11 @@ void evaluateImplicitFunc()
 void evaluateImplicitFunc_PolygonSoup()
 {
     // Replace with your code here, for "key == '5'"
-    evaluateImplicitFunc();
+//    evaluateImplicitFunc();
+    auto radius = wendlandRadius * diag_size;
+    MLSHelper mlsHelper(grid_points, P, {}, resolution, polyDegree, radius);
+    mlsHelper.calcGridValues_NormConstr(N);
+    grid_values = mlsHelper.getGridValues();
 }
 
 // Code to display the grid lines given a grid structure of the given form.
@@ -323,7 +333,7 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
         constrained_values = helper_fast.constrValues();
 
         // Make grid
-        nonAlignedGrid();
+        createGrid();
 
         // Evaluate implicit function
         evaluateImplicitFunc();
@@ -501,6 +511,7 @@ int main(int argc, char *argv[])
                 // Switch view to show the grid
                 callback_key_down(viewer, '3', 0);
             }
+            ImGui::Checkbox("Non-aligned grid", &non_aligned);
         }
     };
 

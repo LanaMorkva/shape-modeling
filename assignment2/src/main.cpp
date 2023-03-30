@@ -70,6 +70,8 @@ std::string filename_par;
 bool non_aligned = false;
 int k_neighb = 5;
 bool flipN = false;
+bool autoNormFlipOn = false;
+bool spatialIndexOn = true;
 
 // Functions
 void createGrid();
@@ -79,6 +81,7 @@ void evaluateImplicitFunc();
 void evaluateImplicitFunc_PolygonSoup();
 void getLines();
 void pcaNormal();
+void autoNormFlip(const std::vector<std::vector<int>> &conn_graph);
 bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers);
 
 // Creates a grid_points array for the simple sphere example. The points are
@@ -136,11 +139,6 @@ void alignedGrid() {
 }
 
 void nonAlignedGrid() {
-    Eigen::Array3d bb_min0 = P.colwise().minCoeff();
-    Eigen::Array3d bb_max0 = P.colwise().maxCoeff();
-    Eigen::Vector3d dim0 = bb_max0 - bb_min0;
-    std::cout << "Dim before: " << dim0 << std::endl;
-
     Eigen::MatrixXd centered = P.rowwise() - P.colwise().mean();
     Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(P.rows() - 1);
     Eigen::EigenSolver<Eigen::MatrixXd> es(cov);
@@ -158,8 +156,6 @@ void nonAlignedGrid() {
     bb_max += 0.01*diag_size;
 
     Eigen::Vector3d dim = bb_max - bb_min;
-
-    std::cout << "Dim: " << dim << std::endl;
 
     // Grid spacing
     const double dx = dim[0] / (double)(resolution - 1);
@@ -189,36 +185,22 @@ void evaluateImplicitFunc()
     // scale wendlandRadius to the object size
     auto radius = wendlandRadius * diag_size;
 
-    // slow
-    MLSHelper mlsHelper_sl(grid_points, constrained_points, constrained_values, resolution,
-                        polyDegree, radius);
-    auto start = chrono::high_resolution_clock::now();
-    mlsHelper_sl.calcGridValues();
-    auto end = chrono::high_resolution_clock::now();
-    auto slow_grid_values = mlsHelper_sl.getGridValues();
-    auto timeSlow = std::chrono::duration<double, std::milli>(end - start).count();
-
-    // fast
     MLSHelper mlsHelper(grid_points, constrained_points, constrained_values, resolution,
                         polyDegree, radius);
-    start = chrono::high_resolution_clock::now();
-    mlsHelper.calcGridValues(true);
-    end = chrono::high_resolution_clock::now();
-    grid_values = mlsHelper.getGridValues();
-    auto timeFast = std::chrono::duration<double, std::milli>(end - start).count();
+    auto start = chrono::high_resolution_clock::now();
 
-    printf("Execution time MLS: slow %f; fast %f\n", timeSlow, timeFast);
-    if (!grid_values.isApprox(slow_grid_values)) {
-        printf("Error (MLS): values are not equal\n");
-    } else {
-        printf("Yay (MLS): they are equal\n");
-    }
+    // pass parameter "spatialIndexOn" to use fast or slow implementation
+    mlsHelper.calcGridValues(spatialIndexOn);
+    auto end = chrono::high_resolution_clock::now();
+    auto time = std::chrono::duration<double, std::milli>(end - start).count();
+    grid_values = mlsHelper.getGridValues();
+
+    printf("Execution time MLS %f (%s)\n", time, spatialIndexOn ? "fast" : "slow");
 }
 
 void evaluateImplicitFunc_PolygonSoup()
 {
     // Replace with your code here, for "key == '5'"
-//    evaluateImplicitFunc();
     auto radius = wendlandRadius * diag_size;
     MLSHelper mlsHelper(grid_points, P, {}, resolution, polyDegree, radius);
     mlsHelper.calcGridValues_NormConstr(N);
@@ -291,7 +273,6 @@ void pcaNormal()
     NP = Eigen::MatrixXd(P.rows(), 3);
     conn_graph.resize(P.rows());
 
-    int sign = flipN ? -1 : 1;
     for (int i = 0; i < P.rows(); i++) {
         Eigen::Vector3d p = P.row(i);
         const auto &indices = k_neighb_alg(p);
@@ -313,14 +294,27 @@ void pcaNormal()
                 minEValInd = j;
             }
         }
-        NP.row(i) = sign * eigenVec.col(minEValInd);
+        auto n = eigenVec.col(minEValInd);
+        if (!autoNormFlipOn && n.dot(N.row(i)) < 0) {
+            NP.row(i) = -n;
+        } else {
+            NP.row(i) = n;
+        }
     }
+    if (autoNormFlipOn) {
+        autoNormFlip(conn_graph);
+    }
+}
 
+void autoNormFlip(const std::vector<std::vector<int>> &conn_graph){
     int visitedNum = 0;
     std::vector<bool> visited;
     std::queue<int> visit_order;
     visit_order.push(0);
     visited.resize(conn_graph.size(), false);
+    if (flipN) {
+        NP.row(0) = -NP.row(0);
+    }
     while (visitedNum < conn_graph.size()) {
         int curr;
         if (visit_order.empty()) {
@@ -375,28 +369,17 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
         // Add code for displaying all points, as above
 
         auto start = chrono::high_resolution_clock::now();
-        ConstrHelper helper_fast(P, N, true, resolution);
-        helper_fast.calcConstraints();
+
+        // pass parameter "spatialIndexOn" to use fast or slow implementation
+        ConstrHelper helper(P, N, spatialIndexOn, resolution);
+        helper.calcConstraints();
         auto end = chrono::high_resolution_clock::now();
-        auto timeFast = std::chrono::duration<double, std::milli>(end - start).count();
+        auto time = std::chrono::duration<double, std::milli>(end - start).count();
 
-        start = chrono::high_resolution_clock::now();
-        ConstrHelper helper_slow(P, N);
-        helper_slow.calcConstraints();
-        end = chrono::high_resolution_clock::now();
-        auto timeSlow = std::chrono::duration<double, std::milli>(end - start).count();
+        printf("Execution time constraints %f (%s)\n", time, spatialIndexOn ? "fast" : "slow");
 
-        printf("Execution time constraints: slow %f; fast %f\n", timeSlow, timeFast);
-
-        constrained_points = helper_fast.constrPoints();
-        constrained_values = helper_fast.constrValues();
-        auto slow_constrp = helper_slow.constrPoints();
-
-        if (!slow_constrp.isApprox(constrained_points)) {
-            printf("Error (constraints): values are not equal\n");
-        } else {
-            printf("Yay (constraints): they are equal\n");
-        }
+        constrained_points = helper.constrPoints();
+        constrained_values = helper.constrValues();
 
         Eigen::MatrixXd constrained_colors = Eigen::MatrixXd::Zero(P.rows() * 3, 3);
         constrained_colors.block(0, 2, P.rows(), 1) =
@@ -411,16 +394,12 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
 
     if (key == '3')
     {
+        // add constraints again in case if 2 wasn't pressed or need to rebuild
+        callback_key_down(viewer, '2', modifiers);
+
         // Show grid points with colored nodes and connected with lines
         viewer.data().clear();
         viewer.core().align_camera_center(P);
-
-        // add constraints again in case if 2 wasn't pressed or need to rebuild
-        ConstrHelper helper_fast(P, N, true, resolution);
-        helper_fast.calcConstraints();
-
-        constrained_points = helper_fast.constrPoints();
-        constrained_values = helper_fast.constrValues();
 
         // Make grid
         createGrid();
@@ -460,8 +439,13 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
 
     if (key == '4')
     {
+        // In case keys were not pressed before
+        callback_key_down(viewer, '2', modifiers);
+        callback_key_down(viewer, '3', modifiers);
+
         // Show reconstructed mesh
         viewer.data().clear();
+
         // Code for computing the mesh (V,F) from grid_points and grid_values
         if ((grid_points.rows() == 0) || (grid_values.rows() == 0))
         {
@@ -583,9 +567,11 @@ int main(int argc, char *argv[])
         if (ImGui::CollapsingHeader("Reconstruction Options", ImGuiTreeNodeFlags_DefaultOpen))
         {
             // Expose variable directly ...
+            ImGui::Checkbox("Spatial index", &spatialIndexOn);
             ImGui::InputInt("Resolution", &resolution, 0, 0);
             ImGui::InputInt("polyDegree", &polyDegree, 0, 0);
             ImGui::InputDouble("wendlandRadius", &wendlandRadius, 0, 0);
+            ImGui::Checkbox("Non-aligned grid", &non_aligned);
 
             if (ImGui::Button("Reset Grid", ImVec2(-1, 0)))
             {
@@ -601,9 +587,12 @@ int main(int argc, char *argv[])
                 // Switch view to show the grid
                 callback_key_down(viewer, '3', 0);
             }
-            ImGui::Checkbox("Non-aligned grid", &non_aligned);
-            ImGui::Checkbox("Flip start normal", &flipN);
+        }
+        if (ImGui::CollapsingHeader("Normals Estimation", ImGuiTreeNodeFlags_DefaultOpen)) {
+
             ImGui::InputInt("K-Nearest Neighbours", &k_neighb, 0, 0);
+            ImGui::Checkbox("Auto normal flipping", &autoNormFlipOn);
+            ImGui::Checkbox("Flip start normal", &flipN);
         }
     };
 

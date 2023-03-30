@@ -11,6 +11,7 @@
 // added class to handle spatial indices and brute force method
 #include "ConstrHelper.h"
 #include "MLSHelper.h"
+#include <queue>
 
 using namespace std;
 using Viewer = igl::opengl::glfw::Viewer;
@@ -63,9 +64,12 @@ Eigen::MatrixXi F;
 
 // Output: face normals of the reconstructed mesh, #F x3
 Eigen::MatrixXd FN;
+
 std::string filename_def;
 std::string filename_par;
 bool non_aligned = false;
+int k_neighb = 5;
+bool flipN = false;
 
 // Functions
 void createGrid();
@@ -262,7 +266,93 @@ void getLines()
 // Estimation of the normals via PCA.
 void pcaNormal()
 {
-    NP = -N; // to be replaced with your code
+    auto k_neighb_alg = [=](const Eigen::Vector3d &val) {
+        std::vector<int> indices;
+        std::vector<double> distV;
+        int maxValInd = 0;
+        double maxDist = DBL_MAX;
+        for (int i = 0; i < k_neighb; i++) {
+            indices.push_back(-1);
+            distV.push_back(DBL_MAX);
+        }
+        for (int i = 0; i < P.rows(); i++) {
+            Eigen::Vector3d p = P.row(i);
+            auto dist = (p-val).norm();
+            if (dist < maxDist) {
+                distV[maxValInd] = dist;
+                indices[maxValInd] = i;
+                maxValInd = std::max_element(distV.begin(), distV.end()) - distV.begin();
+                maxDist = distV[maxValInd];
+            }
+        }
+        return indices;
+    };
+    std::vector<std::vector<int>> conn_graph;
+    NP = Eigen::MatrixXd(P.rows(), 3);
+    conn_graph.resize(P.rows());
+
+    int sign = flipN ? -1 : 1;
+    for (int i = 0; i < P.rows(); i++) {
+        Eigen::Vector3d p = P.row(i);
+        const auto &indices = k_neighb_alg(p);
+        Eigen::MatrixXd PI = Eigen::MatrixXd(indices.size(), 3);
+        for (int j = 0; j < indices.size(); j++) {
+            PI.row(j) = P.row(indices[j]);
+            conn_graph[i].push_back(indices[j]);
+        }
+        Eigen::MatrixXd centered = PI.rowwise() - PI.colwise().mean();
+        Eigen::MatrixXd cov = (centered.adjoint() * centered) / double(PI.rows() - 1);
+        Eigen::EigenSolver<Eigen::MatrixXd> es(cov);
+        Eigen::MatrixXd eigenVec = es.pseudoEigenvectors();
+        Eigen::MatrixXd eigenVal = es.pseudoEigenvalueMatrix();
+        int minEValInd = -1; double minEVal = DBL_MAX;
+        for (int j = 0; j < eigenVal.rows(); j++) {
+            auto val = eigenVal.coeff(j,j);
+            if (val < minEVal) {
+                minEVal = val;
+                minEValInd = j;
+            }
+        }
+        NP.row(i) = sign * eigenVec.col(minEValInd);
+    }
+
+    int visitedNum = 0;
+    std::vector<bool> visited;
+    std::queue<int> visit_order;
+    visit_order.push(0);
+    visited.resize(conn_graph.size(), false);
+    while (visitedNum < conn_graph.size()) {
+        int curr;
+        if (visit_order.empty()) {
+            for (int i = 0; i < conn_graph.size(); i++) {
+                if (!visited[i]) {
+                    curr = i;
+                    break;
+                }
+            }
+        } else {
+            curr = visit_order.front();
+            visit_order.pop();
+        }
+        const auto &neighb = conn_graph[curr];
+        for (int index : neighb) {
+            if (index!=curr && !visited[index]) {
+                const auto &neighb_n = conn_graph[index];
+                auto it = std::find(neighb_n.begin(), neighb_n.end(), curr);
+                if (it != neighb_n.end()) {
+                    auto n_curr = NP.row(curr);
+                    auto n_next = NP.row(index);
+                    if (n_curr.dot(n_next) < 0) {
+                        NP.row(index) = -n_next;
+                    }
+                    visit_order.push(index);
+                    visited[index] = true;
+                }
+            }
+        }
+        visited[curr] = true;
+        visitedNum++;
+    }
 }
 
 bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
@@ -512,6 +602,8 @@ int main(int argc, char *argv[])
                 callback_key_down(viewer, '3', 0);
             }
             ImGui::Checkbox("Non-aligned grid", &non_aligned);
+            ImGui::Checkbox("Flip start normal", &flipN);
+            ImGui::InputInt("K-Nearest Neighbours", &k_neighb, 0, 0);
         }
     };
 

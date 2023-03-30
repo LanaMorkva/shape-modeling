@@ -67,7 +67,7 @@ Eigen::MatrixXd FN;
 
 std::string filename_def;
 std::string filename_par;
-bool non_aligned = false;
+bool non_aligned = true;
 int k_neighb = 5;
 bool flipN = false;
 bool autoNormFlipOn = false;
@@ -535,7 +535,7 @@ int main(int argc, char *argv[])
     {
         cout << "Usage ex2_bin <mesh.off>" << endl;
         igl::readOFF("../data/sphere.off", P, F, N);
-        filename_def = "../res/sphere.off";
+        filename_def = "../results/sphere.off";
     }
     else
     {
@@ -544,7 +544,7 @@ int main(int argc, char *argv[])
         filename_def = argv[1];
         auto it = filename_def.find("/data/");
         if (it != std::string::npos) {
-            filename_def.replace(it, 6, "/res/");
+            filename_def.replace(it, 6, "/results/");
         }
     }
     diag_size = igl::bounding_box_diagonal(P);

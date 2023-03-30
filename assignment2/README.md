@@ -25,26 +25,29 @@ Edit this 'README.md' file to report all your results. You only need to update t
 
 ## Reports
 ### 1 - Visualization of the 'cat.off' point cloud with constrained points
-| model name  | view 01             | view 02            |
-| :---------: | ------------------- | ------------------ |
-| cat         |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
+| model name  | view 01                                                 | view 02                                                  |
+| :---------: |---------------------------------------------------------|----------------------------------------------------------|
+| cat         | <img align="center" src="./res/Cat1_1.png" width="300"> | <img align="center"  src="./res/Cat1_2.png" width="300"> |
 
 ### 2 - Grid with nodes colored w.r.t. the implicit function (using the non-axis-aligned grid as described in Section 2.3) 
-| model name  | view 01             | view 02            |
-| :---------: | ------------------- | ------------------ |
-| cat         |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
-| luigi      |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
+
+Here I also added a parameter to have an ability to change from non- to axis-aligned grid and back.
+
+| model name  | view 01                                                   | view 02                                                    |
+| :---------: |-----------------------------------------------------------|------------------------------------------------------------|
+| cat         | <img align="center" src="./res/Cat2_1.png" width="300">   | <img align="center"  src="./res/Cat2_2.png" width="300">   |
+| luigi      | <img align="center" src="./res/Luigi2_1.png" width="300"> | <img align="center"  src="./res/Luigi2_2.png" width="300"> |
 
 ### 3 - Reconstructed surfaces
 **Please also save the reconstructed shape (.off) in the results folder**
 
-| sphere                                                     | cat                                                           |
-| :--------------------------------------------------------: |  :----------------------------------------------------------: | 
-|<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
-| luigi                                                      | horse                                                         |
-|<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
-| hound                                                      |                                                               |
-|<img align="center" src="./res/placeholder.png" width="300">|                                                               |
+|                          sphere                          |                           cat                           |
+|:--------------------------------------------------------:|:-------------------------------------------------------:| 
+| <img align="center" src="./res/Sphere3.png" width="300"> | <img align="center"  src="./res/Cat3.png" width="300">  |
+|                          luigi                           |                          horse                          |
+| <img align="center" src="./res/Luigi3.png" width="300">  | <img align="center"  src="./res/Horse.png" width="300"> |
+|                          hound                           |                                                         |
+| <img align="center" src="./res/Hound3.png" width="300">  |                                                         |
 
 
 **Please summarize your observations of what happens when you change the following parameters. Please feel free to add screenshots (by creating a separate table) to illustrate your explanation.**
@@ -103,7 +106,22 @@ Please show your answer in screenshot/photos (or link to a PDF). Make sure your 
 
 ### 8 - PCA normals v.s. provided normals (luigi.off)
 
-| model names  | PCA normals             |  Provided normals       | 
-| :---------:  | :---------------------: | :---------------------: |
-| luigi        | <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300">  |
-| comments        | xxxxxxxxxxx | xxxxxxxxxxx |
+Parameters added: # of k-nearest neighbours, if automatic normals flipping is on, if first normal needed to be flipped (for automatic mode).
+
+In this task I also implemented automatic normals flipping. I added the second table to show how it works in compare to the given normals. 
+
+|     model names     |                                                                                  PCA normals                                                                                                                       |                      Provided normals                       | 
+|:-------------------:|:--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:-----------------------------------------------------------:|
+| luigi (constraints) |                                                                                                                          <img align="center"  src="./res/Luigi8c_2.png" width="300">                                                                                                                           | <img align="center"  src="./res/Luigi8c_1.png" width="300"> |
+| luigi (reconstruct) |                                                                                                                           <img align="center"  src="./res/Luigi8_2.png" width="300">                                                                                                                           | <img align="center"  src="./res/Luigi8_1.png" width="300">  |
+
+In my opinion, I got pretty decent results with this method, but of course there are some inaccuracies, especially you can see it near the hat of the figure.<br/> 
+These inaccuracies usually happen because of noise, sharp edges or if we don't have enough points in the region. 
+It can also be hard to estimate a suitable # for k-nearest neighbours and even harder to estimate consistent normal directions without having the reference, as you can see in the next table.
+
+
+| model names |                         PCA normals                         |                      Provided normals                       | 
+|:-----------:|:-----------------------------------------------------------:|:-----------------------------------------------------------:|
+|   sphere    | <img align="center"  src="./res/Sphere8_2.png" width="300"> | <img align="center"  src="./res/Sphere8_1.png" width="300"> |
+|     cat     |  <img align="center"  src="./res/Cat8_2.png" width="300">   |  <img align="center"  src="./res/Cat8_1.png" width="300">   |
+|    luigi    | <img align="center"  src="./res/Luigi8a_2.png" width="300"> | <img align="center"  src="./res/Luigi8a_1.png" width="300"> |

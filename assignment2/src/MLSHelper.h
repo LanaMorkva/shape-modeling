@@ -22,7 +22,7 @@ public:
 private:
     void initGrid();
     std::vector<int> withinDist_Slow(const Eigen::RowVector3d &q);
-    std::vector<int> withinDist(const Eigen::Array3d &q);
+    std::vector<int> withinDist(const Eigen::Vector3d &q);
     int polynomVecSize() const;
     Eigen::VectorXd getPolyVector(const Eigen::RowVector3d &q) const;
 
@@ -34,7 +34,7 @@ private:
     std::vector<std::vector<int>> uni_grid;
     Eigen::Array3d bb_min, bb_max, dim;
     Eigen::Array3d cell_size;
-    int m_gridx, m_gridy, m_gridz;
+    int m_gridx, m_gridy, m_gridz, m_gridxdy;
 };
 
 

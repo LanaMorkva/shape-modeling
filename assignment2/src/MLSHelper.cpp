@@ -16,7 +16,7 @@ MLSHelper::MLSHelper(const Eigen::MatrixXd &GP, const Eigen::MatrixXd &CP, const
 }
 
 void MLSHelper::initGrid() {
-    double eps_m = 0.01 * igl::bounding_box_diagonal(m_CP);
+    double eps_m = 0.05 * igl::bounding_box_diagonal(m_CP);
     bb_min = m_CP.colwise().minCoeff();
     bb_max = m_CP.colwise().maxCoeff();
 
@@ -32,15 +32,16 @@ void MLSHelper::initGrid() {
     m_gridx = std::ceil(cell_num[0]);
     m_gridy = std::ceil(cell_num[1]);
     m_gridz = std::ceil(cell_num[2]);
+    m_gridxdy = m_gridx*m_gridy;
 
-    uni_grid.resize(m_gridx*m_gridy*m_gridz);
+    uni_grid.resize(m_gridxdy*m_gridz);
     for (int index = 0; index < m_CP.rows(); index++) {
         Eigen::Array3d p = m_CP.row(index);
         Eigen::Array3d cell_dist = (p - bb_min) / cell_size;
         int i = std::floor(cell_dist[0]);
         int j = std::floor(cell_dist[1]);
         int k = std::floor(cell_dist[2]);
-        int cell_ind = i + j * m_gridx + k * m_gridx * m_gridy;
+        int cell_ind = i + j * m_gridx + k * m_gridxdy;
         uni_grid[cell_ind].push_back(index);
     }
 }
@@ -124,9 +125,9 @@ std::vector<int> MLSHelper::withinDist_Slow(const Eigen::RowVector3d &q) {
     return res;
 }
 
-std::vector<int> MLSHelper::withinDist(const Eigen::Array3d &q) {
+std::vector<int> MLSHelper::withinDist(const Eigen::Vector3d &q) {
     std::vector<int> res;
-    Eigen::Array3d dist = (q - bb_min) / cell_size;
+    Eigen::Array3d dist = (q.array() - bb_min) / cell_size;
     Eigen::Array3d prev_cell = dist.floor();
     Eigen::Array3d next_cell = prev_cell+1;
 
@@ -148,26 +149,33 @@ std::vector<int> MLSHelper::withinDist(const Eigen::Array3d &q) {
     int maxy = std::min(std::max(j+(int)rNumCell[1], 0), m_gridy-1);
     int maxz = std::min(std::max(k+(int)rNumCell[2], 0), m_gridz-1);
 
+    int cell = minx + miny * m_gridx + minz * m_gridxdy;
     for (int z = minz; z < maxz+1; z++) {
         for (int y = miny; y < maxy+1; y++) {
             for (int x = minx; x < maxx+1; x++) {
-                int cell = x + y * m_gridx + z * m_gridx * m_gridy;
-//                bool needCheck = x==minx || x==maxx || y==miny+3 || y>maxy-3 || z<minz+3 || z>maxz-3;
-                // TODO: add smart check if we need to check (on diagonal for ex); also add if cell definitely in dist
-                bool needCheck = true;
-                for (int num: uni_grid[cell]) {
-                    if (!needCheck) {
-                        res.push_back(num);
-                    } else {
-                        Eigen::Array3d p = m_CP.row(num);
-                        auto norm = (p - q).matrix().norm();
+                int distX = (x<i) ? x : x+1;
+                int distY = (y<j) ? y : y+1;
+                int distZ = (z<k) ? z : z+1;
+                Eigen::Vector3d distCorn;
+                distCorn << distX * cell_size[0], distY * cell_size[1], distZ * cell_size[2];
+                auto maxDistInCell = (distCorn - q).norm();
+                // full cell within distance
+                if (maxDistInCell < m_radius) {
+                    res.insert(res.end(), uni_grid[cell].begin(), uni_grid[cell].end());
+                } else {
+                    for (int num: uni_grid[cell]) {
+                        Eigen::Vector3d p = m_CP.row(num);
+                        auto norm = (p - q).norm();
                         if (norm < m_radius) {
                             res.push_back(num);
                         }
                     }
                 }
+                cell++;
             }
+            cell += m_gridx - (maxx + 1 - minx);
         }
+        cell += m_gridxdy - m_gridx * (maxy + 1 - miny);
     }
     return res;
 }

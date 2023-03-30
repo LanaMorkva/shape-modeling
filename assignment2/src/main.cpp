@@ -440,7 +440,6 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
     if (key == '4')
     {
         // In case keys were not pressed before
-        callback_key_down(viewer, '2', modifiers);
         callback_key_down(viewer, '3', modifiers);
 
         // Show reconstructed mesh

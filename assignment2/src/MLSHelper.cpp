@@ -82,11 +82,12 @@ void MLSHelper::calcGridValues(bool fast) {
 }
 
 void MLSHelper::calcGridValues_NormConstr(const Eigen::MatrixXd &N) {
+    initGrid();
     int size = m_res * m_res * m_res;
     m_GV.resize(size);
     for (int index = 0; index < size; index++) {
         auto gp = m_GP.row(index);
-        const auto &points = withinDist_Slow(gp);
+        const auto &points = withinDist(gp);
         if (points.empty()) {
             // assign large positive value
             m_GV[index] = DBL_MAX;

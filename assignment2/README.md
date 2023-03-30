@@ -52,17 +52,27 @@ Here I also added a parameter to have an ability to change from non- to axis-ali
 
 **Please summarize your observations of what happens when you change the following parameters. Please feel free to add screenshots (by creating a separate table) to illustrate your explanation.**
 
-| params                   | Your Observation    | 
-| :---------------------:  | ------------------- |
-| grid resolution          |   xxxx              |
-| Wendland function radius |   xxxx              |
-| polynomial degree        |   xxxx              |
+| params                   | Your Observation                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 
+| :---------------------:  |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| grid resolution          | When we increase the grid resolution - we increase the number of cells in each dimension, and so the number of points with the value of the implicit function (if the point is inside or outside of the figure). With increasing this value our reconstructed mesh will be smoother and less cubic, because we have more points on the surface. If the grid size is too small we also can lose some details, because the points of the mesh are too far away from the points on the grid. But the time consumption also will grow with the increasing of the grid size. |
+| Wendland function radius | This parameter is responsible for determining how close should point of the mesh be to influence the value of the grid (and how much they will influence it). If this value is too big, points inside and outside of the surface will just cancel each other, and for many grid points we won't receive valid results, the reconstructed object will lose its details and will be much smoother. If the value is too small - the figure will have more edges and there can appear some holes in the places that don't have enough points.                               |
+| polynomial degree        | The degree og the polynomial change the type of function that is used for the MLS. With increasing of the degree the figure by itself is smoother, but we get many flyaways.                                                                                                                                                                                                                                                                                                                                                                                            |
+
+| params                   | Small                                                    | Big                                                      |
+| :---------------------:  |----------------------------------------------------------|----------------------------------------------------------|
+| grid resolution          | <img align="center" src="./res/GridS.png" width="300">   | <img align="center" src="./res/GridB.png" width="300">   |
+| Wendland function radius | <img align="center" src="./res/RadS.png" width="300">    | <img align="center" src="./res/RadB.png" width="300">    |
+| polynomial degree        | <img align="center" src="./res/DegreeS.png" width="300"> | <img align="center" src="./res/DegreeB.png" width="300"> |
+
 
 **Please compare the computation time for constraints computation and MLS using brute force and a spatial index. Use hound.off for the comparison and use the same parameters for the timings with and without use of spatial index (please report the parameters that you used).**
-| step                    | brute force         |  spatial index      |
-| :---------------------: | :-----------------: | :-----------------: |
-| constraints             |   xxxx              |    xxxx             |
-| MLS                     |   xxxx              |    xxxx             |
+
+Parameters: grid resolution = 50; wendland function radius = 0.05; polynomial degree = 0.
+
+| step                    | brute force | spatial index |
+| :---------------------: |:-----------:|:-------------:|
+| constraints             |   3495 ms   |     32 ms     |
+| MLS                     |  12955 ms   |    2303 ms    |
 
 
 
@@ -89,10 +99,15 @@ Please show your answer in screenshot/photos (or link to a PDF). Make sure your 
 
 
 ### 6 - Normal-based v.s. point-based reconstruction ("hound.off")
-| method       | view 01             | view 02            | comments           | 
-| :---------:  | ------------------- | ------------------ | ------------------ |
-| point-based  |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> | xxx |
-| normal-based |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> | xxx |
+
+As you can see the results received using the normal-based approach are much more realistic even when we use small grid resolution. Especially good this algorithm work with edges and small parts of the figure, this approach does not cut them off as the point-based one does.
+Another advantage of this algorithm is that we are using much fewer points and there is no need to preprocess and add additional constraints.
+
+| method       |                        view 01                         |                        view 02                         |
+| :---------:  |:------------------------------------------------------:|:------------------------------------------------------:| 
+| point-based  |  <img align="center" src="./res/PB1.png" width="300">  | <img align="center"  src="./res/PB2.png" width="300">  | 
+| normal-based |  <img align="center" src="./res/NB1.png" width="300">  | <img align="center"  src="./res/NB2.png" width="300">  |
+
 
 ### 7 - MLS v.s. Screened Poisson Reconstruction v.s. RIMLS
 

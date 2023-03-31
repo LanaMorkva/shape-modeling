@@ -80,12 +80,7 @@ Parameters: grid resolution = 50; wendland function radius = 0.05; polynomial de
 
 **Prove that the normal of a surface defined by an implicit function is proportional to its gradient.**
 
-Please show your answer in screenshot/photos (or link to a PDF). Make sure your answer is readable. You can add more pages by modifying the table.
-
-| page1                   |  page2                  | 
-| :---------------------: | :---------------------: |
-| <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300">  |
-
+[Link to the pdf with the proof](./results/Prove1.pdf)
 
 ### 5 - Theory Question 2
 
@@ -100,7 +95,7 @@ Please show your answer in screenshot/photos (or link to a PDF). Make sure your 
 
 ### 6 - Normal-based v.s. point-based reconstruction ("hound.off")
 
-As you can see the results received using the normal-based approach are much more realistic even when we use small grid resolution. Especially good this algorithm work with edges and small parts of the figure, this approach does not cut them off as the point-based one does.
+As you can see, the results received using the normal-based approach are much more realistic even when we use small grid resolution. Especially good this algorithm work with edges and small parts of the figure, this approach does not cut them off as the point-based one does.
 Another advantage of this algorithm is that we are using much fewer points and there is no need to preprocess and add additional constraints.
 
 | method       |                        view 01                         |                        view 02                         |
@@ -113,11 +108,16 @@ Another advantage of this algorithm is that we are using much fewer points and t
 
 **No implementation required, you can use [Meshlab](https://www.meshlab.net) to perform the comparisons.**
 
-| model names  | MLS          | Possion             | RIMLS               | 
-| :---------:  | :---------:  | :-----------------: | :-----------------: |
-| cat          |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300"> |
-| luigi        |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300"> |
-| comments        | xxxxxxxxxxx | xxxxxxxxxxx | xxxxxxxxxxx |
+I tried to change the parameters of all methods, so their grid sizes will be as close as possible for more adequate analysis.
+
+My realization of MLS has similar results to RIMLS, but their reconstructions are much smoother, without weird curves in some places. 
+At the same moment, they are more precise with smaller detail, what you can see around the hat, cheeks, legs, and arms of Luigi. This algorithm has these advantages because it deals with outliers much better than a regular MLS.
+On contrary, the Screened Poisson Reconstruction seems to have a completely different approach, the sizes of its grid differentiate, they are bigger on flat regions and smaller in curvier parts, which, I think, is a good advantage from the efficiency perspective as we don't need so many cells to represent shape.
+
+| model names  |                            MLS                             |                             Possion                             |                             RIMLS                             | 
+| :---------:  |:----------------------------------------------------------:|:---------------------------------------------------------------:|:-------------------------------------------------------------:|
+| cat          |  <img align="center" src="./res/Cat_MLS.png" width="300">  |  <img align="center"  src="./res/Cat_Poisson.png" width="300">  |  <img align="center"  src="./res/Cat_RIMLS.png" width="300">  |
+| luigi        | <img align="center" src="./res/Luigi_MLS.png" width="300"> | <img align="center"  src="./res/Luigi_Poisson.png" width="300"> | <img align="center"  src="./res/Luigi_RIMLS.png" width="300"> |
 
 ### 8 - PCA normals v.s. provided normals (luigi.off)
 

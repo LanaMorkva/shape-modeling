@@ -86,12 +86,7 @@ Parameters: grid resolution = 50; wendland function radius = 0.05; polynomial de
 
 **Compute the closed-form gradient of the MLS approximation.**
 
-Please show your answer in screenshot/photos (or link to a PDF). Make sure your answer is readable. You can add more pages by modifying the table.
-
-| page1                   |  page2                  | 
-| :---------------------: | :---------------------: |
-| <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center"  src="./res/placeholder.png" width="300">  |
-
+I, unfortunately, did not finish this task. 
 
 ### 6 - Normal-based v.s. point-based reconstruction ("hound.off")
 

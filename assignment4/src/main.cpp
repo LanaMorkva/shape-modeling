@@ -121,10 +121,23 @@ static inline void SSVD2x2(const Eigen::Matrix2d& J, Eigen::Matrix2d& U, Eigen::
 	V(3) = c;
 }
 
-void ConvertConstraintsToMatrixForm(VectorXi indices, MatrixXd positions, Eigen::SparseMatrix<double> &C, VectorXd &d)
+void ConvertConstraintsToMatrixForm(const VectorXi &indices, const MatrixXd &positions, Eigen::SparseMatrix<double> &C,
+                                    VectorXd &d)
 {
 	// Convert the list of fixed indices and their fixed positions to a linear system
 	// Hint: The matrix C should contain only one non-zero element per row and d should contain the positions in the correct order.
+    long size = indices.size();
+    long len = 2 * size;
+    C = Eigen::SparseMatrix<double>(len, 2*V.rows());
+    d = VectorXd::Zero(len);
+
+    for (long i=0; i<size; i++) {
+        auto ind = indices[i];
+        C.coeffRef(i, ind) = 1.0;
+        C.coeffRef(i+size, ind+V.rows()) = 1.0;
+        d[i] = positions.coeff(i, 0);
+        d[i+size] = positions.coeff(i, 1);
+    }
 }
 
 void computeParameterization(int type)
@@ -137,15 +150,13 @@ void computeParameterization(int type)
 	Eigen::SparseMatrix<double> C;
 	VectorXd d;
 	// Find the indices of the boundary vertices of the mesh and put them in fixed_UV_indices
-	if (!freeBoundary)
-	{
-		// The boundary vertices should be fixed to positions on the unit disc. Find these position and
-		// save them in the #V x 2 matrix fixed_UV_position.
-	}
-	else
-	{
+	if (!freeBoundary) {
+        igl::boundary_loop(F, fixed_UV_indices);
+        igl::map_vertices_to_circle(V, fixed_UV_indices, fixed_UV_positions);
+	} else {
 		// Fix two UV vertices. This should be done in an intelligent way. Hint: The two fixed vertices should be the two most distant one on the mesh.
-	}
+
+    }
 
 	ConvertConstraintsToMatrixForm(fixed_UV_indices, fixed_UV_positions, C, d);
 
@@ -155,6 +166,22 @@ void computeParameterization(int type)
 	if (type == '1') {
 		// Add your code for computing uniform Laplacian for Tutte parameterization
 		// Hint: use the adjacency matrix of the mesh
+        auto facesNum = F.rows();
+        auto vNum = V.rows();
+        b = VectorXd::Zero(2*vNum);
+        Eigen::MatrixXi Fuv = Eigen::MatrixXi(facesNum*2, F.cols());
+        for (int i = 0; i < facesNum; i++) {
+            Eigen::VectorXi face = F.row(i);
+            Fuv.row(i) = face;
+            Fuv.row(i+facesNum) = face.array() + vNum;
+        }
+
+        SparseVector<double> Asum;
+        SparseMatrix<double> Adiag;
+        igl::adjacency_matrix(Fuv, A);
+        igl::sum(A,1,Asum);
+        igl::diag(Asum,Adiag);
+        A = Adiag - A;
 	}
 
 	if (type == '2') {
@@ -177,11 +204,27 @@ void computeParameterization(int type)
 	// Construct the system as discussed in class and the assignment sheet
 	// Use igl::cat to concatenate matrices
 	// Use Eigen::SparseLU to solve the system. Refer to tutorial 3 for more detail
+    SparseMatrix<double> Ares1, Ares2, Ares;
+    VectorXd bres;
+    igl::cat(1, b, d, bres);
+    igl::cat(1, A, C, Ares1);
+    igl::cat(1, SparseMatrix<double>(C.transpose()),
+            Eigen::SparseMatrix<double>(C.rows(), C.rows()), Ares2);
+    igl::cat(2, Ares1, Ares2, Ares);
 
-	// The solver will output a vector
+    Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
+    solver.analyzePattern(Ares);
+    solver.factorize(Ares);
+    if (solver.info() != Success) {
+        std::cout << solver.lastErrorMessage() << std::endl;
+        return;
+    }
+    VectorXd x = solver.solve(bres);
+
+    // The solver will output a vector
 	UV.resize(V.rows(), 2);
-	//UV.col(0) =
-	//UV.col(1) =
+	UV.col(0) = x.head(V.rows());
+	UV.col(1) = x.segment(V.rows(), V.rows());
 }
 
 bool callback_key_pressed(Viewer &viewer, unsigned char key, int modifiers) {

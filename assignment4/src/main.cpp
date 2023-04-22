@@ -164,11 +164,11 @@ void computeParameterization(int type)
 	// and put it in the matrix A.
 	// The dimensions of A should be 2#V x 2#V.
 	if (type == '1') {
-		// Add your code for computing uniform Laplacian for Tutte parameterization
-		// Hint: use the adjacency matrix of the mesh
         auto facesNum = F.rows();
         auto vNum = V.rows();
         b = VectorXd::Zero(2*vNum);
+
+        // duplicate faces (with offset) to receive 2 times bigger matrix A
         Eigen::MatrixXi Fuv = Eigen::MatrixXi(facesNum*2, F.cols());
         for (int i = 0; i < facesNum; i++) {
             Eigen::VectorXi face = F.row(i);
@@ -185,8 +185,29 @@ void computeParameterization(int type)
 	}
 
 	if (type == '2') {
-		// Add your code for computing cotangent Laplacian for Harmonic parameterization
-		// Use can use a function "cotmatrix" from libIGL, but ~~~~***READ THE DOCUMENTATION***~~~~
+        auto facesNum = F.rows();
+        auto vNum = V.rows();
+        b = VectorXd::Zero(2*vNum);
+
+        // duplicate vertices matrix and faces (with offset) to receive 2 times bigger matrix A
+        Eigen::MatrixXi Fuv = Eigen::MatrixXi(facesNum*2, F.cols());
+        Eigen::MatrixXd Vuv = Eigen::MatrixXd(V.rows()*2, V.cols());
+        for (int i = 0; i < facesNum; i++) {
+            Eigen::VectorXi face = F.row(i);
+            Fuv.row(i) = face;
+            Fuv.row(i+facesNum) = face.array() + vNum;
+        }
+        for (int i = 0; i < V.rows(); i++) {
+            Vuv.row(i) = V.row(i);
+            Vuv.row(i+V.rows()) = V.row(i);
+        }
+
+        SparseVector<double> Asum;
+        SparseMatrix<double> Adiag;
+        igl::cotmatrix(Vuv, Fuv, A);
+        igl::sum(A,1,Asum);
+        igl::diag(Asum,Adiag);
+        A = Adiag - A;
 	}
 
 	if (type == '3') {

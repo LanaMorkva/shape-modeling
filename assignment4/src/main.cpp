@@ -213,6 +213,21 @@ void computeParameterization(int type)
 	if (type == '3') {
 		// Add your code for computing the system for LSCM parameterization
 		// Note that the libIGL implementation is different than what taught in the tutorial! Do not rely on it!!
+        SparseMatrix<double> Dx, Dy;
+        computeSurfaceGradientMatrix(Dx, Dy);
+
+        Eigen::VectorXd dblA;
+        igl::doublearea(V, F, dblA);
+        auto area = dblA.asDiagonal();
+        SparseMatrix<double> a, b1, b2, temp1, temp2;
+
+        a = Dx.transpose() * area * Dx + Dy.transpose() * area * Dy;
+        b1 = -1 * Dx.transpose() * area * Dy + Dy.transpose() * area * Dx;
+        b2 = -1 * Dy.transpose() * area * Dx + Dx.transpose() * area * Dy;
+        igl::cat(1, a, b2, temp1);
+        igl::cat(1, b1, a, temp2);
+        igl::cat(2, temp1, temp2, A);
+        b = VectorXd::Zero(A.rows());
 	}
 
 	if (type == '4') {
@@ -236,6 +251,7 @@ void computeParameterization(int type)
     Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
     solver.analyzePattern(Ares);
     solver.factorize(Ares);
+
     if (solver.info() != Success) {
         std::cout << solver.lastErrorMessage() << std::endl;
         return;

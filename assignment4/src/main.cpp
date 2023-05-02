@@ -144,10 +144,9 @@ static inline void SSVD2x2(const Eigen::Matrix2d& J, Eigen::Matrix2d& U, Eigen::
 void ConvertConstraintsToMatrixForm(const VectorXi &indices, const MatrixXd &positions, Eigen::SparseMatrix<double> &C,
                                     VectorXd &d)
 {
-	// Convert the list of fixed indices and their fixed positions to a linear system
-	// Hint: The matrix C should contain only one non-zero element per row and d should contain the positions in the correct order.
     long size = indices.size();
     long len = 2 * size;
+    // C rows: #of constraints - fixed points; cols: #of vertices*2 (for u and v)
     C = Eigen::SparseMatrix<double>(len, 2*V.rows());
     d = VectorXd::Zero(len);
 
@@ -202,7 +201,7 @@ void computeParameterization(int type)
         auto vNum = V.rows();
         b = VectorXd::Zero(2*vNum);
 
-        // duplicate faces (with offset) to receive 2 times bigger matrix A
+        // duplicate faces (with offset) to receive 2 times bigger matrix A (for u and v)
         Eigen::MatrixXi Fuv = Eigen::MatrixXi(facesNum*2, F.cols());
         for (int i = 0; i < facesNum; i++) {
             Eigen::VectorXi face = F.row(i);
@@ -223,7 +222,7 @@ void computeParameterization(int type)
         auto vNum = V.rows();
         b = VectorXd::Zero(2*vNum);
 
-        // duplicate vertices matrix and faces (with offset) to receive 2 times bigger matrix A
+        // duplicate vertices matrix and faces (with offset) to receive 2 times bigger matrix A (for u and v)
         Eigen::MatrixXi Fuv = Eigen::MatrixXi(facesNum*2, F.cols());
         Eigen::MatrixXd Vuv = Eigen::MatrixXd(V.rows()*2, V.cols());
         for (int i = 0; i < facesNum; i++) {
@@ -249,25 +248,26 @@ void computeParameterization(int type)
 
     Eigen::VectorXd dblA;
     igl::doublearea(V, F, dblA);
-    SparseMatrix<double> area = SparseMatrix<double>(dblA.asDiagonal());
+    SparseMatrix<double> dblADiag = SparseMatrix<double>(dblA.asDiagonal());
 
 	if (type == '3') {
-        SparseMatrix<double> a, b1, b2, temp1, temp2;
+        SparseMatrix<double> a, b1, b2, col1, col2;
 
-        a = Dx.transpose() * area * Dx + Dy.transpose() * area * Dy;
-        b1 = -1 * Dx.transpose() * area * Dy + Dy.transpose() * area * Dx;
-        b2 = -1 * Dy.transpose() * area * Dx + Dx.transpose() * area * Dy;
-        igl::cat(1, a, b2, temp1);
-        igl::cat(1, b1, a, temp2);
-        igl::cat(2, temp1, temp2, A);
+        // a - topLeft and bottomRight; b1 - topRight; b2 - bottomLeft
+        a = Dx.transpose() * dblADiag * Dx + Dy.transpose() * dblADiag * Dy;
+        b1 = -1 * Dx.transpose() * dblADiag * Dy + Dy.transpose() * dblADiag * Dx;
+        b2 = -1 * Dy.transpose() * dblADiag * Dx + Dx.transpose() * dblADiag * Dy;
+        igl::cat(1, a, b2, col1);
+        igl::cat(1, b1, a, col2);
+        igl::cat(2, col1, col2, A);
         b = VectorXd::Zero(A.rows());
 	}
 
 	if (type == '4') {
-		// Add your code for computing ARAP system and right-hand side
-		// Implement a function that computes the local step first
-		// Then construct the matrix with the given rotation matrices
-        area = (area * 0.5).cwiseSqrt();
+        if (UV.size() == 0) {
+            computeParameterization('3');
+        }
+        SparseMatrix<double> area = (dblADiag * 0.5).cwiseSqrt();
         VectorXd R = VectorXd(4*F.rows());
         for (int i = 0; i < F.rows(); i++) {
             auto fArea = area.coeff(i, i);
@@ -286,7 +286,7 @@ void computeParameterization(int type)
         SparseMatrix<double> areaDy = area*Dy;
         SparseMatrix<double> a, row1, row2, row3, row4, row12, row34, zero;
         zero = SparseMatrix<double>(Dx.rows(), Dx.cols());
-        // construct A (Dx 0; Dy 0; 0 Dx; 0 Dy)
+        // construct A (Dx 0; Dy 0; 0 Dx; 0 Dy) multiplied by sqrt(doublearea / 2)
         igl::cat(2, areaDx, zero, row1);
         igl::cat(2, areaDy, zero, row2);
         igl::cat(2, zero, areaDx, row3);
@@ -301,13 +301,13 @@ void computeParameterization(int type)
         b = a.transpose() * R;
 	}
 
-    SparseMatrix<double> Ares1, Ares2, Ares;
+    SparseMatrix<double> col1, col2, Ares;
     VectorXd bres;
     igl::cat(1, b, d, bres);
-    igl::cat(1, A, C, Ares1);
+    igl::cat(1, A, C, col1);
     igl::cat(1, SparseMatrix<double>(C.transpose()),
-            Eigen::SparseMatrix<double>(C.rows(), C.rows()), Ares2);
-    igl::cat(2, Ares1, Ares2, Ares);
+            Eigen::SparseMatrix<double>(C.rows(), C.rows()), col2);
+    igl::cat(2, col1, col2, Ares);
 
     Eigen::SparseLU<Eigen::SparseMatrix<double>, Eigen::COLAMDOrdering<int>> solver;
     solver.analyzePattern(Ares);

@@ -40,11 +40,15 @@ Eigen::MatrixXi F;
 // UV coordinates, #V x2
 Eigen::MatrixXd UV;
 
+Eigen::MatrixXd F_colors;
+
 VectorXi fixed_UV_indices;
 
 bool showingUV = false;
 bool showingFixedVert = false;
+bool showingDistortion = false;
 bool freeBoundary = false;
+int distType = 0;
 double TextureResolution = 10;
 igl::opengl::ViewerCore temp3D;
 igl::opengl::ViewerCore temp2D;
@@ -52,6 +56,12 @@ igl::opengl::ViewerCore temp2D;
 void Redraw()
 {
 	viewer.data().clear();
+    if (showingDistortion) {
+        viewer.data().set_mesh(V, F);
+        viewer.data().set_colors(F_colors);
+        viewer.data().set_face_based(true);
+        return;
+    }
 
 	if (!showingUV)
 	{
@@ -139,6 +149,45 @@ static inline void SSVD2x2(const Eigen::Matrix2d& J, Eigen::Matrix2d& U, Eigen::
 	V(1) = -s;
 	V(2) = s;
 	V(3) = c;
+}
+
+void calculateDistortion()
+{
+    if (UV.size() == 0) {
+        std::cout << "No UV, can't calculate the distortion";
+        return;
+    }
+    VectorXd Dist = VectorXd(F.rows());
+    SparseMatrix<double> Dx, Dy;
+    MatrixXd I = MatrixXd::Identity(2, 2);
+    computeSurfaceGradientMatrix(Dx, Dy);
+    for (int i = 0; i < F.rows(); i++) {
+        Eigen::Matrix2d J;
+        J << Dx.row(i)*UV.col(0), Dy.row(i)*UV.col(0),
+             Dx.row(i)*UV.col(1), Dy.row(i)*UV.col(1);
+        switch (distType) {
+        case 0: Dist[i] = (J+J.transpose()+J.trace()*I).squaredNorm(); break;
+        case 1: {
+            Eigen::Matrix2d u, s, v, r;
+            SSVD2x2(J, u, s, v);
+            r = u * v.transpose();
+            // only determinant > 0 is suitable; change sign by multiplying one row by -1
+            if (r.determinant() < 0) {
+                r.row(0) *= -1;
+            }
+            Dist[i] = (J-r).squaredNorm();
+        } break;
+        case 2: {
+            auto val = J.determinant() - 1;
+            Dist[i] = val * val;
+            break;
+        }
+        }
+    }
+    double maxDist = Dist.maxCoeff();
+    F_colors = MatrixXd::Ones(F.rows(), 3);
+    F_colors.col(1) -= Dist / maxDist;
+    F_colors.col(2) -= Dist / maxDist;
 }
 
 void ConvertConstraintsToMatrixForm(const VectorXi &indices, const MatrixXd &positions, Eigen::SparseMatrix<double> &C,
@@ -271,11 +320,16 @@ void computeParameterization(int type)
         VectorXd R = VectorXd(4*F.rows());
         for (int i = 0; i < F.rows(); i++) {
             auto fArea = area.coeff(i, i);
-            Eigen::Matrix2d J, U, S, V, r;
+            Eigen::Matrix2d J, U, S, v, r;
             J << Dx.row(i)*UV.col(0), Dy.row(i)*UV.col(0),
                  Dx.row(i)*UV.col(1), Dy.row(i)*UV.col(1);
-            SSVD2x2(J, U, S, V);
-            r = U * V.transpose();
+            SSVD2x2(J, U, S, v);
+            r = U * v.transpose();
+
+            // only determinant > 0 is suitable; change sign by multiplying one row by -1
+            if (r.determinant() < 0) {
+                r.row(0) *= -1;
+            }
 
             R[i] = fArea*r.coeff(0, 0);
             R[i+F.rows()] = fArea*r.coeff(0, 1);
@@ -326,6 +380,7 @@ void computeParameterization(int type)
 }
 
 bool callback_key_pressed(Viewer &viewer, unsigned char key, int modifiers) {
+    showingDistortion = false;
 	switch (key) {
 	case '1':
 	case '2':
@@ -333,9 +388,11 @@ bool callback_key_pressed(Viewer &viewer, unsigned char key, int modifiers) {
 	case '4':
 		computeParameterization(key);
 		break;
+
+    // key for the distortion visualization (removed previous comments)
 	case '5':
-			// Add your code for detecting and displaying flipped triangles in the
-			// UV domain here
+        showingDistortion = true;
+        calculateDistortion();
 		break;
 	case '+':
 		TextureResolution /= 2;
@@ -412,9 +469,8 @@ int main(int argc,char *argv[]) {
 			// Expose variable directly ...
 			ImGui::Checkbox("Free boundary", &freeBoundary);
             ImGui::Checkbox("Show fixed vertices", &showingFixedVert);
-            ImGui::Checkbox("Show UV", &showingUV);
-
-			// TODO: Add more parameters to tweak here...
+            std::vector<std::string> distortions = {"Conformal", "Isometric", "Authalic"};
+            ImGui::Combo("Distortion type", &distType, distortions);
 		}
 	};
 

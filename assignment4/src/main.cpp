@@ -22,6 +22,8 @@
 #include <igl/speye.h>
 #include <igl/repdiag.h>
 #include <igl/cat.h>
+#include <igl/dijkstra.h>
+#include <igl/adjacency_list.h>
 
 using namespace std;
 using namespace Eigen;
@@ -38,7 +40,10 @@ Eigen::MatrixXi F;
 // UV coordinates, #V x2
 Eigen::MatrixXd UV;
 
+VectorXi fixed_UV_indices;
+
 bool showingUV = false;
+bool showingFixedVert = false;
 bool freeBoundary = false;
 double TextureResolution = 10;
 igl::opengl::ViewerCore temp3D;
@@ -53,17 +58,32 @@ void Redraw()
 		viewer.data().set_mesh(V, F);
 		viewer.data().set_face_based(false);
 
-    if(UV.size() != 0)
-    {
-      viewer.data().set_uv(TextureResolution*UV);
-      viewer.data().show_texture = true;
-    }
+        if(UV.size() != 0)
+        {
+          viewer.data().set_uv(TextureResolution*UV);
+          viewer.data().show_texture = true;
+        }
 	}
 	else
 	{
 		viewer.data().show_texture = false;
 		viewer.data().set_mesh(UV, F);
 	}
+
+    if (showingFixedVert) {
+        Eigen::MatrixXd colors, points;
+        colors.setZero(fixed_UV_indices.rows(), 3);
+        points.setZero(fixed_UV_indices.rows(), 3);
+
+        // Build color map
+        for (int i = 0; i < fixed_UV_indices.rows(); ++i)
+        {
+            points.row(i) = V.row(fixed_UV_indices[i]);
+            colors(i, 0) = 1;
+        }
+        viewer.data().point_size = 10;
+        viewer.data().add_points(points, colors);
+    }
 }
 
 bool callback_mouse_move(Viewer &viewer, int mouse_x, int mouse_y)
@@ -142,7 +162,6 @@ void ConvertConstraintsToMatrixForm(const VectorXi &indices, const MatrixXd &pos
 
 void computeParameterization(int type)
 {
-	VectorXi fixed_UV_indices;
 	MatrixXd fixed_UV_positions;
 
 	SparseMatrix<double> A;
@@ -150,19 +169,34 @@ void computeParameterization(int type)
 	Eigen::SparseMatrix<double> C;
 	VectorXd d;
 	// Find the indices of the boundary vertices of the mesh and put them in fixed_UV_indices
-	if (!freeBoundary) {
+	if (!freeBoundary || type < '3') {
         igl::boundary_loop(F, fixed_UV_indices);
         igl::map_vertices_to_circle(V, fixed_UV_indices, fixed_UV_positions);
 	} else {
-		// Fix two UV vertices. This should be done in an intelligent way. Hint: The two fixed vertices should be the two most distant one on the mesh.
+        VectorXi prev_pos; VectorXd minDist;
+        std::vector<std::vector<int>> VV;
+        igl::adjacency_list(F, VV);
+        double maxDist = 0;
+        // indices for 2 most distant points
+        int ind1, ind2;
+        for (int i = 0; i < V.rows(); i++) {
+            for (int j = i; j < V.rows(); j++) {
+                igl::dijkstra(V, VV, i, {j}, minDist, prev_pos);
+                if (maxDist < minDist[j]) {
+                    maxDist = minDist[j];
+                    ind1 = i;
+                    ind2 = j;
+                }
+            }
+        }
 
+        fixed_UV_indices = VectorXi(2);
+        fixed_UV_indices << ind1, ind2;
+        igl::map_vertices_to_circle(V, fixed_UV_indices, fixed_UV_positions);
     }
 
 	ConvertConstraintsToMatrixForm(fixed_UV_indices, fixed_UV_positions, C, d);
 
-	// Find the linear system for the parameterization (1- Tutte, 2- Harmonic, 3- LSCM, 4- ARAP)
-	// and put it in the matrix A.
-	// The dimensions of A should be 2#V x 2#V.
 	if (type == '1') {
         auto facesNum = F.rows();
         auto vNum = V.rows();
@@ -210,15 +244,14 @@ void computeParameterization(int type)
         A = Adiag - A;
 	}
 
-	if (type == '3') {
-		// Add your code for computing the system for LSCM parameterization
-		// Note that the libIGL implementation is different than what taught in the tutorial! Do not rely on it!!
-        SparseMatrix<double> Dx, Dy;
-        computeSurfaceGradientMatrix(Dx, Dy);
+    SparseMatrix<double> Dx, Dy;
+    computeSurfaceGradientMatrix(Dx, Dy);
 
-        Eigen::VectorXd dblA;
-        igl::doublearea(V, F, dblA);
-        auto area = dblA.asDiagonal();
+    Eigen::VectorXd dblA;
+    igl::doublearea(V, F, dblA);
+    SparseMatrix<double> area = SparseMatrix<double>(dblA.asDiagonal());
+
+	if (type == '3') {
         SparseMatrix<double> a, b1, b2, temp1, temp2;
 
         a = Dx.transpose() * area * Dx + Dy.transpose() * area * Dy;
@@ -234,12 +267,40 @@ void computeParameterization(int type)
 		// Add your code for computing ARAP system and right-hand side
 		// Implement a function that computes the local step first
 		// Then construct the matrix with the given rotation matrices
+        area = (area * 0.5).cwiseSqrt();
+        VectorXd R = VectorXd(4*F.rows());
+        for (int i = 0; i < F.rows(); i++) {
+            auto fArea = area.coeff(i, i);
+            Eigen::Matrix2d J, U, S, V, r;
+            J << Dx.row(i)*UV.col(0), Dy.row(i)*UV.col(0),
+                 Dx.row(i)*UV.col(1), Dy.row(i)*UV.col(1);
+            SSVD2x2(J, U, S, V);
+            r = U * V.transpose();
+
+            R[i] = fArea*r.coeff(0, 0);
+            R[i+F.rows()] = fArea*r.coeff(0, 1);
+            R[i+2*F.rows()] = fArea*r.coeff(1, 0);
+            R[i+3*F.rows()] = fArea*r.coeff(1, 1);
+        }
+        SparseMatrix<double> areaDx = area*Dx;
+        SparseMatrix<double> areaDy = area*Dy;
+        SparseMatrix<double> a, row1, row2, row3, row4, row12, row34, zero;
+        zero = SparseMatrix<double>(Dx.rows(), Dx.cols());
+        // construct A (Dx 0; Dy 0; 0 Dx; 0 Dy)
+        igl::cat(2, areaDx, zero, row1);
+        igl::cat(2, areaDy, zero, row2);
+        igl::cat(2, zero, areaDx, row3);
+        igl::cat(2, zero, areaDy, row4);
+        igl::cat(1, row1, row2, row12);
+        igl::cat(1, row3, row4, row34);
+        igl::cat(1, row12, row34, a);
+
+        A = a.transpose() * a;
+
+        // construct b equal to A.transpose() * R
+        b = a.transpose() * R;
 	}
 
-	// Solve the linear system.
-	// Construct the system as discussed in class and the assignment sheet
-	// Use igl::cat to concatenate matrices
-	// Use Eigen::SparseLU to solve the system. Refer to tutorial 3 for more detail
     SparseMatrix<double> Ares1, Ares2, Ares;
     VectorXd bres;
     igl::cat(1, b, d, bres);
@@ -350,6 +411,8 @@ int main(int argc,char *argv[]) {
 		{
 			// Expose variable directly ...
 			ImGui::Checkbox("Free boundary", &freeBoundary);
+            ImGui::Checkbox("Show fixed vertices", &showingFixedVert);
+            ImGui::Checkbox("Show UV", &showingUV);
 
 			// TODO: Add more parameters to tweak here...
 		}

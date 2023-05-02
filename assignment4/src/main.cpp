@@ -166,7 +166,7 @@ void calculateDistortion()
         J << Dx.row(i)*UV.col(0), Dy.row(i)*UV.col(0),
              Dx.row(i)*UV.col(1), Dy.row(i)*UV.col(1);
         switch (distType) {
-        case 0: Dist[i] = (J+J.transpose()+J.trace()*I).squaredNorm(); break;
+        case 0: Dist[i] = (J+J.transpose()-J.trace()*I).squaredNorm(); break;
         case 1: {
             Eigen::Matrix2d u, s, v, r;
             SSVD2x2(J, u, s, v);

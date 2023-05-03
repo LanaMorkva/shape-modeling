@@ -43,6 +43,7 @@ Eigen::MatrixXd UV;
 Eigen::MatrixXd F_colors;
 
 VectorXi fixed_UV_indices;
+MatrixXd fixed_UV_positions;
 
 bool showingUV = false;
 bool showingFixedVert = false;
@@ -180,8 +181,8 @@ void calculateDistortion()
         case 2: {
             auto val = J.determinant() - 1;
             Dist[i] = val * val;
-            break;
         }
+        break;
         }
     }
     double maxDist = Dist.maxCoeff();
@@ -210,37 +211,43 @@ void ConvertConstraintsToMatrixForm(const VectorXi &indices, const MatrixXd &pos
 
 void computeParameterization(int type)
 {
-	MatrixXd fixed_UV_positions;
-
 	SparseMatrix<double> A;
 	VectorXd b;
 	Eigen::SparseMatrix<double> C;
 	VectorXd d;
 	// Find the indices of the boundary vertices of the mesh and put them in fixed_UV_indices
 	if (!freeBoundary || type < '3') {
-        igl::boundary_loop(F, fixed_UV_indices);
-        igl::map_vertices_to_circle(V, fixed_UV_indices, fixed_UV_positions);
+        // need to recalculate (important for big meshes and especially for key '4')
+        if (fixed_UV_indices.size() <= 2) {
+            igl::boundary_loop(F, fixed_UV_indices);
+            igl::map_vertices_to_circle(V, fixed_UV_indices, fixed_UV_positions);
+        }
 	} else {
-        VectorXi prev_pos; VectorXd minDist;
-        std::vector<std::vector<int>> VV;
-        igl::adjacency_list(F, VV);
-        double maxDist = 0;
-        // indices for 2 most distant points
-        int ind1, ind2;
-        for (int i = 0; i < V.rows(); i++) {
-            for (int j = i; j < V.rows(); j++) {
-                igl::dijkstra(V, VV, i, {j}, minDist, prev_pos);
-                if (maxDist < minDist[j]) {
-                    maxDist = minDist[j];
-                    ind1 = i;
-                    ind2 = j;
+        // need to recalculate (important for big meshes and especially for key '4')
+        if (fixed_UV_indices.size() != 2) {
+            VectorXi prev_pos;
+            VectorXd minDist;
+            std::vector<std::vector<int>> VV;
+            igl::adjacency_list(F, VV);
+            double maxDist = 0;
+            // indices for 2 most distant points
+            int ind1, ind2;
+            // octo takes too much time
+            for (int i = 0; i < V.rows(); i++) {
+                for (int j = i; j < V.rows(); j++) {
+                    igl::dijkstra(V, VV, i, {j}, minDist, prev_pos);
+                    if (maxDist < minDist[j]) {
+                        maxDist = minDist[j];
+                        ind1 = i;
+                        ind2 = j;
+                    }
                 }
             }
-        }
 
-        fixed_UV_indices = VectorXi(2);
-        fixed_UV_indices << ind1, ind2;
-        igl::map_vertices_to_circle(V, fixed_UV_indices, fixed_UV_positions);
+            fixed_UV_indices = VectorXi(2);
+            fixed_UV_indices << ind1, ind2;
+            igl::map_vertices_to_circle(V, fixed_UV_indices, fixed_UV_positions);
+        }
     }
 
 	ConvertConstraintsToMatrixForm(fixed_UV_indices, fixed_UV_positions, C, d);

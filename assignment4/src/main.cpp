@@ -234,7 +234,7 @@ void computeParameterization(int type)
             int ind1, ind2;
             for (int i = 0; i < V.rows(); i++) {
                 igl::dijkstra(V, VV, i, {}, minDist, prev_pos);
-                for (int j = 0; j < minDist.size(); j++) {
+                for (int j = i; j < minDist.size(); j++) {
                     if (maxDist < minDist[j]) {
                         maxDist = minDist[j];
                         ind1 = i;

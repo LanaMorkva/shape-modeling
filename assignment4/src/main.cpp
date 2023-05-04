@@ -217,13 +217,13 @@ void computeParameterization(int type)
 	VectorXd d;
 	// Find the indices of the boundary vertices of the mesh and put them in fixed_UV_indices
 	if (!freeBoundary || type < '3') {
-        // need to recalculate (important for big meshes and especially for key '4')
+        // need to recalculate (important to not recalculate for big meshes and especially for key '4')
         if (fixed_UV_indices.size() <= 2) {
             igl::boundary_loop(F, fixed_UV_indices);
             igl::map_vertices_to_circle(V, fixed_UV_indices, fixed_UV_positions);
         }
 	} else {
-        // need to recalculate (important for big meshes and especially for key '4')
+        // need to recalculate (important to not recalculate for big meshes and especially for key '4')
         if (fixed_UV_indices.size() != 2) {
             VectorXi prev_pos;
             VectorXd minDist;
@@ -232,10 +232,9 @@ void computeParameterization(int type)
             double maxDist = 0;
             // indices for 2 most distant points
             int ind1, ind2;
-            // octo takes too much time
             for (int i = 0; i < V.rows(); i++) {
-                for (int j = i; j < V.rows(); j++) {
-                    igl::dijkstra(V, VV, i, {j}, minDist, prev_pos);
+                igl::dijkstra(V, VV, i, {}, minDist, prev_pos);
+                for (int j = 0; j < minDist.size(); j++) {
                     if (maxDist < minDist[j]) {
                         maxDist = minDist[j];
                         ind1 = i;

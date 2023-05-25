@@ -1,8 +1,8 @@
 # Assignment 5
 
-Name: 'Your real name'
+Name: Svitlana Morkva
 
-Legi-Nr: 'Your legi number'
+Legi-Nr: 22-944-284
 
 ## Required results
 Edit this 'README.md' file to report all your results. You only need to update the tables in the reports section by adding screenshots and reporting results.
@@ -19,12 +19,12 @@ Edit this 'README.md' file to report all your results. You only need to update t
 
 ## Report
 ### 1.1 - 1.4 Multiresolution Mesh Editing
-| model | S     |  B    |  B'   |  S'   |
-| :-----------:  | ----- | ----- | ----- | ----- |
-| woody-lo       |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
-| woody-hi       |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
-| hand (translation+rotation)           |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
-| cylinder (translation+rotation)       |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
+|              model              | S                                                           | B                                                            | B'                                                           | S'                                                            |
+|:-------------------------------:|-------------------------------------------------------------|--------------------------------------------------------------|--------------------------------------------------------------|---------------------------------------------------------------|
+|            woody-lo             | <img align="center" src="./res/Woody_lo_S.png" width="300"> | <img align="center"  src="./res/Woody_lo_B.png" width="300"> | <img align="center" src="./res/Woody_lo_B2.png" width="300"> | <img align="center"  src="./res/Woody_lo_S2.png" width="300"> |
+|            woody-hi             | <img align="center" src="./res/Woody_hi_S.png" width="300"> | <img align="center"  src="./res/Woody_hi_B.png" width="300"> | <img align="center" src="./res/Woody_hi_B2.png" width="300"> | <img align="center"  src="./res/Woody_hi_S2.png" width="300"> |
+|   hand (translation+rotation)   | <img align="center" src="./res/Hand_S.png" width="300">     | <img align="center"  src="./res/Hand_B.png" width="300">     | <img align="center" src="./res/Hand_B2.png" width="300">     | <img align="center"  src="./res/Hand_S2.png" width="300">     |
+| cylinder (translation+rotation) | <img align="center" src="./res/Cylinder_S.png" width="300"> | <img align="center"  src="./res/Cylinder_B.png" width="300"> | <img align="center" src="./res/Cylinder_B2.png" width="300"> | <img align="center"  src="./res/Cylinder_S2.png" width="300"> |
 
 ### 1.5 Real time mesh editing
 
@@ -32,10 +32,10 @@ Show real time mesh editing using animated gifs or short videos. *Max 15 seconds
 
 > You might find these links helpful for screen recording: [MacOS](https://support.apple.com/en-us/HT208721), [ubuntu](https://askubuntu.com/questions/4428/how-can-i-record-my-screen), [windows](https://support.microsoft.com/en-us/office/record-the-screen-d70508e8-25a3-4b97-b78a-a467b5372e21). Feel free to use any software for the recordings - please make sure to trim/crop the final video properly.
 
-| model |   S' - real time   | model |   S' - real time   |
-| :-----------:  | -----  |-----  |-----  |
-| bar            | <img align="center"  src="./res/placeholder.gif" width="300"> | camel_head     | <img align="center"  src="./res/placeholder.gif" width="300"> |
-| bumpy_plane    | <img align="center"  src="./res/placeholder.gif" width="300"> | cactus         | <img align="center"  src="./res/placeholder.gif" width="300"> |
+| model | S' - real time                                          | model | S' - real time                                          |
+| :-----------:  |---------------------------------------------------------|-----  |---------------------------------------------------------|
+| bar            | <img align="center"  src="./res/Bar.gif" width="300">   | camel_head     | <img align="center"  src="./res/Camel.gif" width="300"> |
+| bumpy_plane    | <img align="center"  src="./res/Plane.gif" width="400"> | cactus         | <img align="center"  src="./res/Cactus.gif" width="300"> |
 
 
 ### 2 Deformation transfer

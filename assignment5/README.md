@@ -39,17 +39,18 @@ Show real time mesh editing using animated gifs or short videos. *Max 15 seconds
 
 
 ### 2 Deformation transfer
-| model | High-freq detail transfer             | Deformation transfer                 |
-| :-----------:  | ------------------------------------- |------------------------------------- |
-| bar            |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
-| bumpy_plane    |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
-| camel_head     |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
-| cactus         |<img align="center" src="./res/placeholder.png" width="300">| <img align="center"  src="./res/placeholder.png" width="300"> |
+| model | High-freq detail transfer                                  | Deformation transfer                                        |
+| :-----------:  |------------------------------------------------------------|-------------------------------------------------------------|
+| bar            | <img align="center" src="./res/HF_Bar.png" width="300">    | <img align="center"  src="./res/DT_Bar.png" width="300">    |
+| bumpy_plane    | <img align="center" src="./res/HF_Plane.png" width="300">  | <img align="center"  src="./res/DT_Plane.png" width="300">  |
+| camel_head     | <img align="center" src="./res/HF_Camel.png" width="300">  | <img align="center"  src="./res/DT_Camel.png" width="300">  |
+| cactus         | <img align="center" src="./res/HF_Cactus.png" width="300"> | <img align="center"  src="./res/DT_Cactus.png" width="300"> |
 
 
 #### Discussion of differences
 
-|      | High-freq detail transfer             | Deformation transfer                 |
-| :-----------:  | ------------------------------------- |------------------------------------- |
-| Your Comments  |xxxxxxxxxxxxxxxxxxx                    | xxxxxxxxxxxxxxxxxxxxxxxxxxxx         |
-
+As you can see from the results above, almost in every aspect Deformation transfer gives better results than High-freq detail transfer.
+This algorithm produces much less distortion that can obviously be observed in bumps of "bumpy_plane" (especially on the edges), on the stem of "cactus" or on the "bar".
+Deformation transfer doesn't lead to self-intersections as easily (tries it best to avoid them), but they can be easily observed in ears for "camel_head" or also in bumps of "bumpy_plane" 
+for High-freq detail transfer. The only possible downside is that this updated algorithm doesn't preserve volumes of objects in the process of
+minimization distortion, but I suppose that in most cases this is expected behaviour that produces the most natural result.

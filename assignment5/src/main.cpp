@@ -61,7 +61,7 @@ typedef Eigen::Triplet<double> T;
 //per vertex color array, #V x3
 Eigen::MatrixXd vertex_colors;
 
-Eigen::SparseMatrix<double> A, mAfc, GDG, GD;
+Eigen::SparseMatrix<double> A, mAfc, GDG, GD, GDGfc;
 Eigen::SimplicialCholesky<Eigen::SparseMatrix<double>, Eigen::RowMajor> solver;
 Eigen::SimplicialCholesky<Eigen::SparseMatrix<double>, Eigen::RowMajor> transferSolver;
 
@@ -106,7 +106,6 @@ void onNewHandleID();
 void applySelection();
 
 void calculateA();
-void calculateTransferMatrices();
 
 void findNewPositions();
 
@@ -203,7 +202,12 @@ int main(int argc, char *argv[]) {
                 handle_id.setConstant(V.rows(), 1, -1);
             }
             if (ImGui::Checkbox("Deformation Transfer", &use_deformation_transfer)) {
-                calculateTransferMatrices();
+                prefactorise();
+                S = V;
+                findNewPositions();
+                B = V;
+                calcDisplacement();
+                V = S;
             }
 
             std::vector<std::string> views = {"None", "S", "B", "B'", "S'"};
@@ -587,21 +591,6 @@ void calculateA() {
     A =  L * M.cwiseInverse() * L;
 }
 
-void calculateTransferMatrices() {
-    igl::HeatGeodesicsData<double> data;
-    igl::heat_geodesics_precompute(V, F, data);
-    GD = data.Div;
-    GDG = GD * data.Grad;
-    transferSolver.compute(GDG);
-
-    prefactorise();
-    S = V;
-    findNewPositions();
-    B = V;
-    calcDisplacement();
-    V = S;
-}
-
 void prefactorise() {
     long constr_num = handle_vertices.size();
     long free_num = V.rows() - constr_num;
@@ -622,6 +611,20 @@ void prefactorise() {
     igl::slice(Af, handle_vertices, 2, mAfc);
 
     solver.compute(Aff);
+
+    if (use_deformation_transfer) {
+        Eigen::VectorXd dblA;
+        Eigen::SparseMatrix<double> Grad,Div;
+        igl::doublearea(V, F, dblA);
+        igl::grad(V,F,Grad);
+        GD = Grad.transpose() * dblA.colwise().replicate(3).asDiagonal();
+        GDG = GD * Grad;
+        Eigen::SparseMatrix<double> GDGff = Eigen::SparseMatrix<double>(free_num, free_num);
+        GDGfc = Eigen::SparseMatrix<double>(free_num, constr_num);
+        igl::slice(GDG, free_indices, free_indices, GDGff);
+        igl::slice(GDG, free_indices, handle_vertices, GDGfc);
+        transferSolver.compute(GDGff);
+    }
 }
 
 void findNewPositions() {
@@ -689,7 +692,7 @@ void calcDisplacement() {
 void addLocalDetail() {
     if (use_deformation_transfer) {
         igl::per_face_normals(V, F, N);
-        Eigen::MatrixXd D2 = Eigen::MatrixXd(F.rows() * 3, 3);
+        Eigen::MatrixXd ST = Eigen::MatrixXd(F.rows() * 3, 3);
         for (long ti = 0; ti < F.rows(); ti++) {
             auto face = F.row(ti);
             auto ni = N.row(ti);
@@ -703,13 +706,21 @@ void addLocalDetail() {
 
             diff = displB2.transpose() * displB.inverse();
             diffT = diff.transpose();
-            D2.row(ti*3) = diffT.row(0);
-            D2.row(ti*3+1) = diffT.row(1);
-            D2.row(ti*3+2) = diffT.row(2);
+            ST.row(ti) = diffT.row(0);
+            ST.row(ti+F.rows()) = diffT.row(1);
+            ST.row(ti+2*F.rows()) = diffT.row(2);
         }
 
-        auto b = GD * D2;
-        V = transferSolver.solve(b);
+        SparseMatrix<double> b = (GD * ST).sparseView();
+        SparseMatrix<double> free_b;
+        igl::slice(b, free_indices, 1, free_b);
+        free_b -= (GDGfc*handle_vertex_positions).sparseView();
+
+        Eigen::MatrixXd V_free = transferSolver.solve(free_b);
+        for (long i = 0; i < free_indices.size(); i++) {
+            long V_row = free_indices[i];
+            V.row(V_row) = V_free.row(i);
+        }
         return;
     }
     long free_num = free_indices.size();

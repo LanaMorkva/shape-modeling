@@ -76,6 +76,7 @@ int quaternion_mode = true;
 bool show_handles = false;
 bool show_weights = false;
 bool given_weights = false;
+bool without_stitching = false;
 int skinning = 2;
 int handle_num = 0;
 float scale = 2.0;
@@ -215,7 +216,9 @@ bool callback_pre_draw(Viewer &viewer) {
                 ST.row(ti+F.rows()) = diffT.row(1);
                 ST.row(ti+2*F.rows()) = diffT.row(2);
             }
-            mViewer.data().set_points(verts, colorP);
+            if (without_stitching) {
+                mViewer.data().set_points(verts, colorP);
+            }
             Eigen::SparseMatrix<double> b = (GD * ST).sparseView();
             Eigen::SparseMatrix<double> free_b;
             igl::slice(b, freeV, 1, free_b);
@@ -329,7 +332,7 @@ void prefactorise() {
     for (int i = 0; i < PI.rows(); i++) {
         if (PI[i] == -1) {
             root = i;
-            constr_size = constr_handles[i].size();
+            constr_size = load_handles[i].size();
             break;
         }
     }
@@ -338,8 +341,8 @@ void prefactorise() {
     constrV_pos = Eigen::MatrixXd(constr_size, 3);
     int constr_Num = 0; int free_Num = 0;
     for (int v = 0; v < V.rows(); v++) {
-        auto it = std::find(constr_handles[root].begin(), constr_handles[root].end(), v);
-        if (it != constr_handles[root].end()) {
+        auto it = std::find(load_handles[root].begin(), load_handles[root].end(), v);
+        if (it != load_handles[root].end()) {
             constrV[constr_Num] = v;
             constrV_pos.row(constr_Num++) = V.row(v);
         } else {
@@ -455,8 +458,8 @@ int main(int argc, char *argv[]) {
         return 1;
     }
     int frameRate = 20;
-    int frameNums = rot_matrices.rows() / (3 * B.rows());
-    anim_seconds = frameNums / frameRate;
+    int frameNums = std::floor(rot_matrices.rows() / (3 * B.rows()));
+    anim_seconds = std::floor(frameNums / frameRate);
     rotmat_to_quaternions();
 
     igl::directed_edge_parents(B, PI);
@@ -487,10 +490,12 @@ int main(int argc, char *argv[]) {
             ImGui::Checkbox("With given weights", &given_weights);
             ImGui::Checkbox("Show handles", &show_handles);
             ImGui::Checkbox("Show weights", &show_weights);
+            ImGui::Checkbox("Show without stitching", &without_stitching);
             ImGui::InputInt("Handle number", &handle_num, 0, 0);
             if (ImGui::InputFloat("Scale for threshold (handles)", &scale, 0, 0)) {
                 construct_handles();
                 calculate_weights(CH, constr_handles, constr_weights, face_constr_weights);
+                prefactorise();
             }
             std::vector<std::string> sk_types = {"Linear", "DQS", "Per-face"};
             ImGui::Combo("Skinning type", &skinning, sk_types);

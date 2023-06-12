@@ -70,6 +70,7 @@ Edit this 'README.md' file to report all your results. Use the ```/res``` folder
 
 
 Your comments (how these setups different from each other, and please compare the visual effects)
+
 | Task 5: per-vertex + rotation + Lerp   | Task 6: per-vertex + quaternion + Nlerp      | Task 7: per-face + quaternion + Slerp  |
 | :---------:                            |        :---------:                           |       :---------:                      |
 | xxxxxx            |xxxxxx            |xxxxxx            |
@@ -82,6 +83,7 @@ Your comments (how these setups different from each other, and please compare th
 | human | <img align="center"  src="./res/placeholder.png" width="300">  | <img align="center"  src="./res/placeholder.png" width="300"> | <img align="center"  src="./res/placeholder.png" width="300"> |
 
 #### Task 8.1.2 skeletal animition using context
+
 | without context   | with context     | 
 | :---------:                            |        :---------:                           |  
 |<img align="center"  src="./res/placeholder.gif" width="300">  |<img align="center"  src="./res/placeholder.gif" width="300">  |  

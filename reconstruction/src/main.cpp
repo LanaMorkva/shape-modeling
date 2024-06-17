@@ -1,3 +1,5 @@
+#include <cstdint>
+
 #include <igl/readOFF.h>
 #include <igl/opengl/glfw/Viewer.h>
 #include <igl/opengl/glfw/imgui/ImGuiMenu.h>
@@ -353,6 +355,7 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
 {
     if (key == '1')
     {
+        // TODO: research what happened with libigl viewer point visualization
         // Show imported points
         viewer.data().clear();
         viewer.core().align_camera_center(P);
@@ -515,7 +518,6 @@ bool callback_key_down(Viewer &viewer, unsigned char key, int modifiers)
         // Restore input normals
         N = N_tmp;
     }
-
     return true;
 }
 

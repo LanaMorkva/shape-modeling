@@ -2,6 +2,8 @@
 Name: Svitlana Morkva
 
 ## Reports
+For some reason in this part a new issue appeared and the points stopped visualizing, the reconstruction part works though. I would need to look into this further.
+
 ### 1 - Visualization of the 'cat.off' point cloud with constrained points
 | model name  | view 01                                                 | view 02                                                  |
 | :---------: |---------------------------------------------------------|----------------------------------------------------------|

@@ -1,7 +1,0 @@
-build
-*.o
-*/.idea
-*/.vscode
-.DS_Store
-release
-debug

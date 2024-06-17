@@ -3,6 +3,9 @@
 Name: Svitlana Morkva
 
 ## Reports
+
+To check different parameterization types you can press *'1'-'4'* keys in the program window, for distortion visualization press *'5'*, and for UV visualization press *'Space'*. You can also specify the path to the mesh as an argument to the program. You can find different meshes in *'data'* directory. For more instructions and explanations you can check the pdf file with the assignment in this directory.
+
 ### (mandatory-1) parameterization and checkerboard texture models
 #### cathead
 | Method            | checkerboard textured models                              | Parameterization                                             |
